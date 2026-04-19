@@ -7,6 +7,11 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
+    base: './', // Use relative paths for assets so it can run from any folder
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+    },
     plugins: [
       react(), 
       tailwindcss(),

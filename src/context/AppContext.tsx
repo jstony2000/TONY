@@ -76,7 +76,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
       // Check cloud sync on mount
       try {
-        const CLOUD_URL = 'https://jstony2000.github.io/nomina-app/nomina_backup.json';
+        const CLOUD_URL = 'https://jstony2000.github.io/TONY/nomina_backup.json';
         const res = await fetch(CLOUD_URL + '?t=' + Date.now());
         if (res.ok) {
           const cloudData = await res.json();
