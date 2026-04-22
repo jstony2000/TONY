@@ -2,20 +2,6 @@
 <html lang="es">
   <head>
     <script>
-      // 1. DNUKE SW ENTIRELY
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then(function(registrations) {
-          for(let registration of registrations) {
-            registration.unregister();
-          }
-        });
-        
-        // Clear all caches just in case
-        window.caches && caches.keys && caches.keys().then(function(names) {
-            for (let name of names) caches.delete(name);
-        });
-      }
-
       // 2. Global error traps (Immediate execution)
       window.addEventListener('error', function(event) {
         var err = document.createElement('div');
