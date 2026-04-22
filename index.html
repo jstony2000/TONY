@@ -1,13 +1,51 @@
 <!doctype html>
-<html lang="en">
+<html lang="es">
   <head>
+    <script>
+      // 1. DNUKE SW ENTIRELY
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for(let registration of registrations) {
+            registration.unregister();
+          }
+        });
+        
+        // Clear all caches just in case
+        window.caches && caches.keys && caches.keys().then(function(names) {
+            for (let name of names) caches.delete(name);
+        });
+      }
+
+      // 2. Global error traps (Immediate execution)
+      window.addEventListener('error', function(event) {
+        var err = document.createElement('div');
+        err.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:yellow;color:red;z-index:2147483647;font-size:20px;padding:20px;overflow:auto;word-wrap:break-word;';
+        err.innerHTML = '<h2>CRITICAL BROWSER ERROR!</h2><p><b>Msg:</b> ' + (event.message || 'Resource load error: ' + (event.target && event.target.src)) + '</p><p><b>Line:</b> ' + event.lineno + '</p><p><b>Stack:</b> ' + (event.error ? event.error.stack : 'N/A') + '</p>';
+        var root = document.getElementById('root');
+        if (root) { root.appendChild(err); } else if (document.body) { document.body.appendChild(err); }
+      }, true);
+      window.addEventListener('unhandledrejection', function(event) {
+        var err = document.createElement('div');
+        err.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:orange;color:black;z-index:2147483647;font-size:20px;padding:20px;overflow:auto;word-wrap:break-word;';
+        err.innerHTML = '<h2>PROMISE REJECTION!</h2><p><b>Reason:</b> ' + (event.reason ? (event.reason.stack || event.reason) : 'N/A') + '</p>';
+        var root = document.getElementById('root');
+        if (root) { root.appendChild(err); } else if (document.body) { document.body.appendChild(err); }
+      });
+    </script>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="theme-color" content="#000000" />
+    <link rel="icon" type="image/png" href="./icono.png" />
+    <link rel="apple-touch-icon" href="./icono.png" />
+    <title>NOMINA</title>
   </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+  <body style="background-color: #050505; color: white;">
+    <div id="root">
+      <div style="display:flex; justify-content:center; align-items:center; height:100vh; width:100vw; background-color:#1e3a8a; color:white; font-size:24px; font-weight:bold; font-family:sans-serif;">
+        🛠️ INICIALIZANDO MOTOR...
+      </div>
+    </div>
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
 

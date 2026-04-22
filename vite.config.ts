@@ -2,42 +2,18 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig, loadEnv} from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: './', // Use relative paths for assets so it can run from any folder
+    base: '/', // Use absolute base path to prevent dev server 404s
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
     },
     plugins: [
       react(), 
-      tailwindcss(),
-      VitePWA({
-        registerType: 'autoUpdate',
-        manifest: {
-          name: 'Nómina PRO',
-          short_name: 'Nómina',
-          description: 'Calendario laboral y cálculo de nómina',
-          theme_color: '#000000',
-          background_color: '#000000',
-          display: 'standalone',
-          icons: [
-            {
-              src: 'icono.png',
-              sizes: '192x192',
-              type: 'image/png'
-            },
-            {
-              src: 'icono.png',
-              sizes: '512x512',
-              type: 'image/png'
-            }
-          ]
-        }
-      })
+      tailwindcss()
     ],
     define: {
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),

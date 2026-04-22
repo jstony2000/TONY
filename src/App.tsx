@@ -67,8 +67,8 @@ const AppContent = () => {
   };
 
   return (
-    <div className="flex justify-center h-screen bg-[#050505] text-white overflow-hidden select-none font-sans">
-      <div className="w-full max-w-[600px] h-full flex flex-col bg-[#050505] border-x border-gray-800">
+    <div className="flex justify-center bg-[#050505] text-white overflow-hidden select-none font-sans" style={{ minHeight: '100vh', width: '100vw', position: 'relative' }}>
+      <div className="w-full max-w-[600px] flex flex-col bg-[#050505] border-x border-gray-800" style={{ minHeight: '100vh', width: '100%', maxWidth: '600px', position: 'relative' }}>
         
         {/* Header */}
         <div className="flex justify-between items-center px-4 py-2 bg-[#111] border-b border-gray-800 shrink-0 h-[60px]">

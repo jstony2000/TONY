@@ -33,6 +33,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   });
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [showSyncDialog, setShowSyncDialog] = useState<any>(null);
 
   const importData = (importedData: any) => {
     const newState: Partial<AppState> = {};
@@ -55,20 +56,35 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const loadData = async () => {
-      const data = JSON.parse(localStorage.getItem(STORAGE_KEYS.DATA) || '{}');
-      const extras = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXTRAS) || '{}');
-      const patron = JSON.parse(localStorage.getItem(STORAGE_KEYS.PATRON) || `[${new Array(42).fill(0).join(',')}]`);
-      const start = localStorage.getItem(STORAGE_KEYS.START) || '2026-01-01';
+      let data = {}, extras = {}, patron = new Array(42).fill(0), start = '2026-01-01', config: any = {};
       
-      let config = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || '{}');
+      try {
+        data = JSON.parse(localStorage.getItem(STORAGE_KEYS.DATA) || '{}') || {};
+        extras = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXTRAS) || '{}') || {};
+        patron = JSON.parse(localStorage.getItem(STORAGE_KEYS.PATRON) || `[${new Array(42).fill(0).join(',')}]`) || new Array(42).fill(0);
+        start = localStorage.getItem(STORAGE_KEYS.START) || '2026-01-01';
+        config = JSON.parse(localStorage.getItem(STORAGE_KEYS.CONFIG) || '{}') || {};
+      } catch (e) {
+        console.error('Error loading LocalStorage', e);
+      }
+
       const currentYear = new Date().getFullYear().toString();
       
-      if (config.salario !== undefined) {
-        // Migrate old config format
-        config = { [currentYear]: config };
-        localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-      } else if (Object.keys(config).length === 0) {
-        config = { [currentYear]: { ...DEFAULT_CONFIG } };
+      try {
+        if (config.salario !== undefined) {
+          // Migrate old config format
+          config = { [currentYear]: config };
+          localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
+        } else if (Object.keys(config).length === 0) {
+          config = { [currentYear]: { ...DEFAULT_CONFIG } };
+        }
+      } catch (e) {
+        // Fallback if localStorage writes are completely disabled
+        if (config.salario !== undefined) {
+          config = { [currentYear]: config };
+        } else if (Object.keys(config).length === 0) {
+          config = { [currentYear]: { ...DEFAULT_CONFIG } };
+        }
       }
 
       setState({ data, extras, config, patron, start });
@@ -81,8 +97,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (res.ok) {
           const cloudData = await res.json();
           const hasLocalData = Object.keys(data).length > 0;
-          if (!hasLocalData || window.confirm("☁️ Hay una copia en la nube disponible.\n¿Deseas sobrescribir tus datos locales con los de GitHub?")) {
+          if (!hasLocalData) {
             importData(cloudData);
+          } else {
+            setShowSyncDialog(cloudData);
           }
         }
       } catch (e) {
@@ -96,11 +114,15 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const saveState = (newState: Partial<AppState>) => {
     setState(prev => {
       const updated = { ...prev, ...newState };
-      if (newState.data) localStorage.setItem(STORAGE_KEYS.DATA, JSON.stringify(updated.data));
-      if (newState.extras) localStorage.setItem(STORAGE_KEYS.EXTRAS, JSON.stringify(updated.extras));
-      if (newState.config) localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(updated.config));
-      if (newState.patron) localStorage.setItem(STORAGE_KEYS.PATRON, JSON.stringify(updated.patron));
-      if (newState.start) localStorage.setItem(STORAGE_KEYS.START, updated.start);
+      try {
+        if (newState.data) localStorage.setItem(STORAGE_KEYS.DATA, JSON.stringify(updated.data));
+        if (newState.extras) localStorage.setItem(STORAGE_KEYS.EXTRAS, JSON.stringify(updated.extras));
+        if (newState.config) localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(updated.config));
+        if (newState.patron) localStorage.setItem(STORAGE_KEYS.PATRON, JSON.stringify(updated.patron));
+        if (newState.start) localStorage.setItem(STORAGE_KEYS.START, updated.start);
+      } catch (e) {
+        console.warn('Storage disabled in preview');
+      }
       return updated;
     });
   };
@@ -172,11 +194,44 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     saveState({ data: newData });
   };
 
-  if (!isLoaded) return null;
+  if (!isLoaded) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#050505', color: 'red', fontSize: '24px' }}>
+      CARGANDO...
+    </div>
+  );
 
   return (
     <AppContext.Provider value={{ state, updateData, updateExtra, updateConfig, updatePatron, updateStart, applyPatron, resetYear, importData }}>
       {children}
+      
+      {showSyncDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-sm w-full text-center">
+            <div className="text-4xl mb-4">☁️</div>
+            <h3 className="text-xl font-bold text-white mb-2">Copia en la Nube</h3>
+            <p className="text-zinc-400 text-sm mb-6">
+              Hay una copia de seguridad disponible en GitHub. ¿Deseas sobrescribir tus datos locales con los de la nube?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSyncDialog(null)}
+                className="flex-1 px-4 py-2 bg-zinc-800 text-white rounded-lg font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  importData(showSyncDialog);
+                  setShowSyncDialog(null);
+                }}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium"
+              >
+                Sincronizar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </AppContext.Provider>
   );
 };

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
@@ -21,20 +20,31 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
   
   const [config, setConfig] = useState<any>(DEFAULT_CONFIG);
   const [monthParams, setMonthParams] = useState({ irpf: 0, prima: 0, cobrarExtras: false });
+  const [activeTab, setActiveTab] = useState('nomina');
 
   useEffect(() => {
     if (isOpen) {
-      const y = currentDate.getFullYear().toString();
-      setYear(y);
-      setMonth(currentDate.getMonth().toString());
-      loadConfigForYear(y);
+      let y = currentDate.getFullYear();
+      let m = currentDate.getMonth();
+
+      // Mes vencido: retrocedemos un mes por defecto
+      if (m === 0) {
+        m = 11;
+        y = y - 1;
+      } else {
+        m = m - 1;
+      }
+
+      setYear(y.toString());
+      setMonth(m.toString());
+      loadConfigForYear(y.toString(), m.toString());
     }
   }, [isOpen, currentDate]);
 
-  const loadConfigForYear = (y: string) => {
+  const loadConfigForYear = (y: string, mOverride?: string) => {
     const conf = state.config[y] || state.config[Object.keys(state.config).sort().reverse()[0]] || DEFAULT_CONFIG;
     setConfig(conf);
-    const m = month;
+    const m = mOverride !== undefined ? mOverride : month;
     const params = conf.mesesParams?.[m] || { irpf: conf.deduccion || 0, prima: 0, cobrarExtras: false };
     setMonthParams(params);
   };
@@ -114,6 +124,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
   // Calculate payroll for the selected month
   const calculatePayroll = () => {
     const y = parseInt(year);
+    if (isNaN(y)) return { hNoche: 0, hGarantia: 0, hFestivo: 0, hExtraMes: 0, impBase: 0, impNoche: 0, impGarantia: 0, impFestivo: 0, impOtros: 0, impPagaExtra: 0, impExtras: 0, valPrima: 0, totalBruto: 0, totalDeduccion: 0, liquido: 0 };
     const m = parseInt(month);
     let cN = 0, cF = 0, hExtraMes = 0;
     const daysInMonth = new Date(y, m + 1, 0).getDate();
@@ -127,7 +138,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
     }
 
     const hNoche = cN * 7.75;
-    const hGarantia = hNoche / 2;
+    const hGarantia = cN * 3.75; // K75 se calcula a 3.75h garantizadas por cada noche trabajada
     const hFestivo = cF * 7.75;
     
     const impBase = Number(config.salario) || 0;
@@ -155,9 +166,61 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
     };
   };
 
+  const calculateAnnualEstimates = () => {
+    let totalBrutoAnual = 0;
+    let totalDeduccionAnual = 0;
+    const y = parseInt(year);
+    if (isNaN(y)) return { bruto: 0, neto: 0 };
+    
+    for (let currentM = 0; currentM < 12; currentM++) {
+      let cN = 0, cF = 0, hExtraM = 0;
+      const daysInMonth = new Date(y, currentM + 1, 0).getDate();
+
+      for (let d = 1; d <= daysInMonth; d++) {
+        const k = `${y}-${String(currentM + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        const v = state.data[k] || 0;
+        if (v === SHIFT_TYPES.NOCHE) cN++;
+        if (v === SHIFT_TYPES.FESTIVO) { cN++; cF++; }
+        if (state.extras[k]) hExtraM += Number(state.extras[k]) || 0;
+      }
+      
+      const vNoche = cN * 7.75;
+      const vGarantia = cN * 3.75;
+      const vFestivo = cF * 7.75;
+      
+      const iBase = Number(config.salario) || 0;
+      const iNoche = vNoche * (Number(config.noche) || 0);
+      const iGarantia = vGarantia * (Number(config.garantia) || 0);
+      const iFestivo = vFestivo * (Number(config.festivo) || 0);
+      const iOtros = Number(config.otros) || 0;
+      const iPagaExtra = (currentM === 5 || currentM === 11) ? (Number(config.pagaExtra) || 0) : 0;
+      
+      const p = config.mesesParams?.[currentM.toString()] || { irpf: config.deduccion || 0, prima: 0, cobrarExtras: false };
+      
+      let iExtras = 0;
+      if (hExtraM !== 0 && p.cobrarExtras) {
+        iExtras = hExtraM * (Number(config.precioExtra) || 20);
+      }
+      
+      const vPrima = Number(p.prima) || 0;
+
+      const mBruto = iBase + iNoche + iGarantia + iFestivo + iPagaExtra + iOtros + iExtras + vPrima;
+      const mDeduccion = mBruto * (Number(p.irpf) || 0);
+      
+      totalBrutoAnual += mBruto;
+      totalDeduccionAnual += mDeduccion;
+    }
+    
+    return {
+      bruto: totalBrutoAnual,
+      neto: totalBrutoAnual - totalDeduccionAnual
+    };
+  };
+
   const payroll = calculatePayroll();
-  const fmtM = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtN = (n: number) => n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const annualEstimates = calculateAnnualEstimates();
+  const fmtM = (n: number) => (n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtN = (n: number) => (n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const renderPatternGrid = () => {
     if (!state.start) return null;
@@ -193,28 +256,39 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#1e1e1e] text-white border-gray-800 max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="flex flex-row items-center justify-between">
-          <DialogTitle className="flex items-center text-xl">
+      <DialogContent className="bg-[#1e1e1e] text-white border-gray-800 w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto px-4 sm:px-6">
+        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-800">
+          <DialogTitle className="flex items-center text-xl font-black">
             ⚙️ AÑO: 
             <Input 
               type="number" 
               value={year} 
               onChange={handleYearChange} 
-              className="w-24 ml-3 bg-[#2a2a2a] border-gray-600 text-center text-lg h-9" 
+              className="w-24 ml-3 bg-[#2a2a2a] border-gray-600 text-center text-lg h-9 font-mono" 
             />
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="nomina" className="w-full mt-4">
-          <TabsList className="grid w-full grid-cols-4 bg-[#222]">
-            <TabsTrigger value="nomina" className="text-xs text-gray-400 data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-[#2979ff] data-[state=active]:border-b-2 data-[state=active]:border-[#2979ff] rounded-none">NÓMINA</TabsTrigger>
-            <TabsTrigger value="precios" className="text-xs text-gray-400 data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-[#2979ff] data-[state=active]:border-b-2 data-[state=active]:border-[#2979ff] rounded-none">PRECIOS</TabsTrigger>
-            <TabsTrigger value="turnos" className="text-xs text-gray-400 data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-[#2979ff] data-[state=active]:border-b-2 data-[state=active]:border-[#2979ff] rounded-none">TURNOS</TabsTrigger>
-            <TabsTrigger value="datos" className="text-xs text-gray-400 data-[state=active]:bg-[#1e1e1e] data-[state=active]:text-[#2979ff] data-[state=active]:border-b-2 data-[state=active]:border-[#2979ff] rounded-none">DATOS</TabsTrigger>
-          </TabsList>
+        <div className="w-full mt-4 flex flex-col gap-4">
+          {/* Custom Tabs List */}
+          <div className="grid w-full grid-cols-4 bg-[#222] rounded-md overflow-hidden p-1 shadow-inner">
+            {['nomina', 'precios', 'turnos', 'datos'].map((t) => (
+              <button
+                key={t}
+                onClick={() => setActiveTab(t)}
+                className={`py-2 text-[10px] sm:text-xs font-bold uppercase transition-colors rounded ${
+                  activeTab === t 
+                    ? 'bg-[#1e1e1e] text-[#2979ff] shadow-sm' 
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
 
-          <TabsContent value="nomina" className="space-y-4 mt-4">
+          {activeTab === 'nomina' && (
+            <div className="space-y-4 fade-in">
             <div className="flex gap-2">
               <div className="flex-1">
                 <Label className="text-xs text-gray-400">MES:</Label>
@@ -268,97 +342,107 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
 
             <Button onClick={saveConfig} className="w-full bg-[#2979ff] hover:bg-blue-600">GUARDAR CONFIGURACIÓN DEL MES</Button>
 
-            <div className="bg-white text-black p-4 rounded font-mono text-sm border border-gray-300 mt-4">
-              <div className="text-center font-bold text-lg border-b-2 border-black pb-2 mb-2 uppercase">
-                SIMULACIÓN NÓMINA - {["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"][parseInt(month)]} {year}
+            <div className="bg-white text-black p-3 sm:p-4 rounded font-mono text-[11px] sm:text-[13px] border border-gray-300 mt-4 overflow-x-auto">
+              <div className="text-center font-bold text-[13px] sm:text-base border-b-2 border-black pb-2 mb-2 uppercase">
+                SIMULACIÓN NÓMINA - {["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"][parseInt(month) || 0]} {year}
               </div>
-              <table className="w-full text-right border-collapse">
+              <table className="w-full text-right border-collapse table-fixed">
                 <thead>
-                  <tr className="text-gray-600 border-b border-black">
-                    <th className="text-left py-1">CONCEPTO</th>
-                    <th className="py-1">UNID.</th>
-                    <th className="py-1">PRECIO</th>
-                    <th className="py-1">TOTAL</th>
+                  <tr className="text-gray-600 border-b border-black text-[9px] sm:text-[11px]">
+                    <th className="text-left py-1 w-[40%]">CONCEPTO</th>
+                    <th className="py-1 w-[18%] text-center">UNID.</th>
+                    <th className="py-1 w-[20%] text-center">PRECIO</th>
+                    <th className="py-1 w-[22%] text-right">TOTAL</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-200">
                   <tr>
-                    <td className="text-left font-bold py-1 border-b border-gray-200">Salario Base</td>
-                    <td className="py-1 border-b border-gray-200">30.00</td>
-                    <td className="py-1 border-b border-gray-200">-</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(payroll.impBase)} €</td>
+                    <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">Salario Base</td>
+                    <td className="py-1.5 text-center">30.00</td>
+                    <td className="py-1.5 text-center">-</td>
+                    <td className="py-1.5 text-right">{fmtM(payroll.impBase)} €</td>
                   </tr>
                   {payroll.impPagaExtra > 0 && (
                     <tr>
-                      <td className="text-left font-bold py-1 border-b border-gray-200">Paga Extra</td>
-                      <td className="py-1 border-b border-gray-200">1.00</td>
-                      <td className="py-1 border-b border-gray-200">{fmtM(config.pagaExtra)} €</td>
-                      <td className="py-1 border-b border-gray-200">{fmtM(payroll.impPagaExtra)} €</td>
+                      <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">Paga Extra</td>
+                      <td className="py-1.5 text-center">1.00</td>
+                      <td className="py-1.5 text-center">{fmtM(config.pagaExtra)} €</td>
+                      <td className="py-1.5 text-right">{fmtM(payroll.impPagaExtra)} €</td>
                     </tr>
                   )}
                   <tr>
-                    <td className="text-left font-bold py-1 border-b border-gray-200">Plus Nocturnidad (K05)</td>
-                    <td className="py-1 border-b border-gray-200">{fmtN(payroll.hNoche)}</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(config.noche)} €</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(payroll.impNoche)} €</td>
+                    <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">P. Nocturnidad</td>
+                    <td className="py-1.5 text-center">{fmtN(payroll.hNoche)}</td>
+                    <td className="py-1.5 text-center">{fmtM(config.noche)} €</td>
+                    <td className="py-1.5 text-right">{fmtM(payroll.impNoche)} €</td>
                   </tr>
                   <tr>
-                    <td className="text-left font-bold py-1 border-b border-gray-200">Garantía (K75)</td>
-                    <td className="py-1 border-b border-gray-200">{fmtN(payroll.hGarantia)}</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(config.garantia)} €</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(payroll.impGarantia)} €</td>
+                    <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">Garantía K75</td>
+                    <td className="py-1.5 text-center">{fmtN(payroll.hGarantia)}</td>
+                    <td className="py-1.5 text-center">{fmtM(config.garantia)} €</td>
+                    <td className="py-1.5 text-right">{fmtM(payroll.impGarantia)} €</td>
                   </tr>
                   <tr>
-                    <td className="text-left font-bold py-1 border-b border-gray-200">Festivo (KA9)</td>
-                    <td className="py-1 border-b border-gray-200">{fmtN(payroll.hFestivo)}</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(config.festivo)} €</td>
-                    <td className="py-1 border-b border-gray-200">{fmtM(payroll.impFestivo)} €</td>
+                    <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">Festivo KA9</td>
+                    <td className="py-1.5 text-center">{fmtN(payroll.hFestivo)}</td>
+                    <td className="py-1.5 text-center">{fmtM(config.festivo)} €</td>
+                    <td className="py-1.5 text-right">{fmtM(payroll.impFestivo)} €</td>
                   </tr>
                   {payroll.impOtros > 0 && (
                     <tr>
-                      <td className="text-left font-bold py-1 border-b border-gray-200">Otros (K70, etc)</td>
-                      <td className="py-1 border-b border-gray-200">1.00</td>
-                      <td className="py-1 border-b border-gray-200">-</td>
-                      <td className="py-1 border-b border-gray-200">{fmtM(payroll.impOtros)} €</td>
+                      <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">Otros Pluses</td>
+                      <td className="py-1.5 text-center">1.00</td>
+                      <td className="py-1.5 text-center">-</td>
+                      <td className="py-1.5 text-right">{fmtM(payroll.impOtros)} €</td>
                     </tr>
                   )}
                   {payroll.hExtraMes > 0 && (
                     <tr>
-                      <td className="text-left font-bold py-1 border-b border-gray-200">Horas Extra {monthParams.cobrarExtras ? '(Cobradas)' : '(A Bolsa)'}</td>
-                      <td className="py-1 border-b border-gray-200">{payroll.hExtraMes.toFixed(2)}</td>
-                      <td className="py-1 border-b border-gray-200">{monthParams.cobrarExtras ? `${fmtM(config.precioExtra)} €` : '-'}</td>
-                      <td className="py-1 border-b border-gray-200">{monthParams.cobrarExtras ? `${fmtM(payroll.impExtras)} €` : '(0,00 €)'}</td>
+                      <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">H. Extra {monthParams.cobrarExtras ? '(Cobro)' : '(Bolsa)'}</td>
+                      <td className="py-1.5 text-center">{payroll.hExtraMes.toFixed(2)}</td>
+                      <td className="py-1.5 text-center">{monthParams.cobrarExtras ? `${fmtM(config.precioExtra)} €` : '-'}</td>
+                      <td className="py-1.5 text-right">{monthParams.cobrarExtras ? `${fmtM(payroll.impExtras)} €` : '(0,00 €)'}</td>
                     </tr>
                   )}
                   {payroll.valPrima > 0 && (
                     <tr>
-                      <td className="text-left font-bold py-1 border-b border-gray-200">Prima / Atrasos</td>
-                      <td className="py-1 border-b border-gray-200">1.00</td>
-                      <td className="py-1 border-b border-gray-200">-</td>
-                      <td className="py-1 border-b border-gray-200">{fmtM(payroll.valPrima)} €</td>
+                      <td className="text-left font-bold py-1.5 break-words leading-tight pr-1">Prima / Atrasos</td>
+                      <td className="py-1.5 text-center">1.00</td>
+                      <td className="py-1.5 text-center">-</td>
+                      <td className="py-1.5 text-right">{fmtM(payroll.valPrima)} €</td>
                     </tr>
                   )}
                 </tbody>
               </table>
               <div className="mt-4 border-t-2 border-black pt-2 flex flex-col gap-1">
-                <div className="flex justify-between">
+                <div className="flex justify-between items-center text-[12px] sm:text-[14px]">
                   <span>TOTAL DEVENGADO</span>
-                  <span>{fmtM(payroll.totalBruto)} €</span>
+                  <span className="font-bold">{fmtM(payroll.totalBruto)} €</span>
                 </div>
-                <div className="flex justify-between text-red-600">
-                  <span>DEDUCCIONES</span>
-                  <span>-{fmtM(payroll.totalDeduccion)} €</span>
+                <div className="flex justify-between items-center text-red-600 text-[12px] sm:text-[14px]">
+                  <span>DEDUCCIONES (SS+IRPF)</span>
+                  <span className="font-bold">-{fmtM(payroll.totalDeduccion)} €</span>
                 </div>
-                <div className="flex justify-between font-black text-lg mt-1 border-t border-dashed border-black pt-1">
-                  <span>LÍQUIDO</span>
+                <div className="flex justify-between items-center font-black text-sm sm:text-base mt-2 border-t border-dashed border-black pt-2">
+                  <span>LÍQUIDO A PERCIBIR</span>
                   <span>{fmtM(payroll.liquido)} €</span>
                 </div>
               </div>
             </div>
-          </TabsContent>
 
-          <TabsContent value="precios" className="space-y-3 mt-4 overflow-y-auto max-h-[60vh] pr-2">
-            <div className="flex flex-col gap-3">
+            <Button onClick={() => window.print()} className="w-full bg-[#00e676] hover:bg-green-500 text-black font-bold mt-2">🖨️ EXPORTAR PDF / IMPRIMIR</Button>
+
+            <div className="bg-black border border-gray-800 rounded p-4 text-center mt-2 shadow-inner">
+              <div className="text-xs text-gray-400 font-bold mb-1 tracking-wider uppercase">Proyección Anual Estimada</div>
+              <div className="text-2xl font-black text-[#00e676] mb-1">{fmtM(annualEstimates.bruto)} €</div>
+              <div className="text-sm text-gray-300 font-mono">{fmtM(annualEstimates.neto)} € (Neto)</div>
+            </div>
+          </div>
+          )}
+
+          {activeTab === 'precios' && (
+          <div className="space-y-3 overflow-y-auto fade-in">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Salario Mensual (Base):</Label>
                 <div className="flex gap-2 items-center">
@@ -432,9 +516,11 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
               </div>
             </div>
             <Button onClick={saveConfig} className="w-full bg-[#2979ff] hover:bg-blue-600 mt-4 text-white font-bold tracking-wider">GUARDAR DATOS DEL AÑO</Button>
-          </TabsContent>
+          </div>
+          )}
 
-          <TabsContent value="turnos" className="space-y-4 mt-4">
+          {activeTab === 'turnos' && (
+          <div className="space-y-4 fade-in">
             <div>
               <Label className="text-xs">Fecha Inicio Ciclo:</Label>
               <Input type="date" value={state.start} onChange={(e) => updateStart(e.target.value)} className="bg-[#2a2a2a] border-gray-600" />
@@ -448,9 +534,11 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
             </div>
             <Button onClick={handleApplyPatron} className="w-full bg-[#2979ff] hover:bg-blue-600">APLICAR PATRÓN AL AÑO</Button>
             <Button onClick={() => { if(confirm(`¿Borrar datos de ${year}?`)) { resetYear(parseInt(year)); onClose(); } }} variant="destructive" className="w-full">BORRAR AÑO COMPLETO</Button>
-          </TabsContent>
+          </div>
+          )}
 
-          <TabsContent value="datos" className="space-y-4 mt-4">
+          {activeTab === 'datos' && (
+          <div className="space-y-4 fade-in">
             <div className="space-y-3">
               <div>
                 <Label className="text-xs text-[#ffd700]">BOLSA DE HORAS (Oficial del Año):</Label>
@@ -474,8 +562,9 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                 <Button className="w-full bg-gray-800 border border-gray-600 hover:bg-gray-700 pointer-events-none">📂 CARGAR COPIA...</Button>
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
