@@ -21,6 +21,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
   const [config, setConfig] = useState<any>(DEFAULT_CONFIG);
   const [monthParams, setMonthParams] = useState({ irpf: 0, prima: 0, cobrarExtras: false });
   const [activeTab, setActiveTab] = useState('nomina');
+  const [isEditingYear, setIsEditingYear] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -259,13 +260,25 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
       <DialogContent className="bg-[#1e1e1e] text-white border-gray-800 w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto px-4 sm:px-6">
         <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-800">
           <DialogTitle className="flex items-center text-xl font-black">
-            ⚙️ AÑO: 
-            <Input 
-              type="number" 
-              value={year} 
-              onChange={handleYearChange} 
-              className="w-24 ml-3 bg-[#2a2a2a] border-gray-600 text-center text-lg h-9 font-mono" 
-            />
+            <span className="mr-2">⚙️ AÑO:</span>
+            <div 
+              onClick={() => setIsEditingYear(true)}
+              className="px-3 py-1 bg-[#2a2a2a] border border-gray-700 rounded-md font-mono text-lg cursor-pointer hover:border-gray-500 transition-colors flex items-center justify-center min-w-[80px] h-9"
+            >
+              {isEditingYear ? (
+                <input 
+                  autoFocus
+                  type="number" 
+                  value={year} 
+                  onChange={handleYearChange}
+                  onBlur={() => setIsEditingYear(false)}
+                  onKeyDown={(e) => e.key === 'Enter' && setIsEditingYear(false)}
+                  className="w-20 bg-transparent border-none text-center focus:outline-none focus:ring-0 p-0 m-0" 
+                />
+              ) : (
+                year
+              )}
+            </div>
           </DialogTitle>
         </DialogHeader>
 

@@ -4,11 +4,20 @@
   .fade-in {
     animation: fadeIn 0.2s ease-in-out;
   }
+  .today-pulse {
+    animation: todayPulse 2.5s infinite ease-in-out;
+  }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(2px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes todayPulse {
+  0% { transform: scale(1); box-shadow: 0 0 10px rgba(0, 230, 118, 0.4); }
+  50% { transform: scale(1.04); box-shadow: 0 0 25px rgba(0, 230, 118, 0.8), inset 0 0 10px rgba(255, 255, 255, 0.3); }
+  100% { transform: scale(1); box-shadow: 0 0 10px rgba(0, 230, 118, 0.4); }
 }
 
 html, body, #root {

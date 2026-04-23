@@ -112,10 +112,10 @@ export const Calendar: React.FC<CalendarProps> = ({ currentDate, editMode, onDay
               key={idx}
               onClick={() => onDayClick(dateStr, fd, fm, fy)}
               className={cn(
-                "relative flex flex-col items-center justify-center min-h-[75px] sm:min-h-[90px] rounded-lg cursor-pointer transition-opacity select-none",
+                "relative flex flex-col items-center justify-center min-h-[75px] sm:min-h-[90px] rounded-lg cursor-pointer transition-all select-none",
                 cls,
                 !item.isCurrentMonth && "opacity-35",
-                isToday && "border-2 border-white shadow-[0_0_10px_#00b0ff] z-[5]",
+                isToday && "today-pulse ring-2 ring-white z-[10] border-none shadow-2xl scale-105",
                 editMode === 0 ? "cursor-default" : "cursor-pointer"
               )}
               style={{ backgroundColor: bgColor }}
