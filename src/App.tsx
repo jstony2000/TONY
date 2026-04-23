@@ -1,16 +1,18 @@
 // Sync Nudge
 import React, { useState } from 'react';
 import { AppProvider } from './context/AppContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Calendar } from './components/Calendar';
 import { MiniStats } from './components/MiniStats';
 import { SummaryPanel } from './components/SummaryPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { ExtraHoursModal } from './components/ExtraHoursModal';
 import { useAppContext } from './context/AppContext';
-import { Lock, Unlock, Settings, Save, ChevronLeft, ChevronRight, Clock } from 'lucide-react';
+import { Lock, Unlock, Settings, Save, ChevronLeft, ChevronRight, Clock, User as UserIcon, LogOut, Cloud } from 'lucide-react';
 
 const AppContent = () => {
   const { state, updateData } = useAppContext();
+  const { user, login, logout } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [editMode, setEditMode] = useState(0); // 0: Locked, 1: Shifts, 2: Extras
   const [isConfigOpen, setIsConfigOpen] = useState(false);
@@ -80,6 +82,13 @@ const AppContent = () => {
             {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
           </h2>
           <div className="flex gap-2">
+            <button 
+              onClick={user ? logout : login} 
+              className={`w-10 h-10 flex items-center justify-center border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
+              title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
+            >
+              {user ? <Cloud size={20} /> : <UserIcon size={20} />}
+            </button>
             <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-xl font-black hover:bg-gray-700">
               <ChevronRight />
             </button>
@@ -129,8 +138,10 @@ const AppContent = () => {
 
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <AuthProvider>
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
+    </AuthProvider>
   );
 }

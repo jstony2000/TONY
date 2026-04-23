@@ -1,0 +1,33 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User specific settings and configuration",
+      "type": "object",
+      "properties": {
+        "patron": { "type": "array", "description": "42-day pattern" },
+        "start": { "type": "string", "description": "Pattern reference date" },
+        "config": { "type": "object", "description": "Yearly payroll configurations" }
+      }
+    },
+    "Turn": {
+      "title": "Daily Turn",
+      "description": "Turn data for a specific day",
+      "type": "object",
+      "properties": {
+        "type": { "type": "integer", "description": "Turn type code" },
+        "extraHours": { "type": "number", "description": "Extra hours worked" }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document"
+    },
+    "/users/{userId}/turns/{dateStr}": {
+      "schema": "Turn",
+      "description": "Daily turn entries"
+    }
+  }
+}

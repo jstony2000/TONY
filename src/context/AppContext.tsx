@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { STORAGE_KEYS, DEFAULT_CONFIG } from '../lib/constants';
+import { useAuth } from './AuthContext';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc, updateDoc, collection, onSnapshot, query, writeBatch } from 'firebase/firestore';
 
 type AppState = {
   data: Record<string, number>;
@@ -24,6 +27,7 @@ type AppContextType = {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider = ({ children }: { children: ReactNode }) => {
+  const { user } = useAuth();
   const [state, setState] = useState<AppState>({
     data: {},
     extras: {},
@@ -54,10 +58,10 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     saveState(newState);
   };
 
+  // 1. Initial Load from LocalStorage
   useEffect(() => {
-    const loadData = async () => {
+    const loadLocal = () => {
       let data = {}, extras = {}, patron = new Array(42).fill(0), start = '2026-01-01', config: any = {};
-      
       try {
         data = JSON.parse(localStorage.getItem(STORAGE_KEYS.DATA) || '{}') || {};
         extras = JSON.parse(localStorage.getItem(STORAGE_KEYS.EXTRAS) || '{}') || {};
@@ -67,53 +71,72 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       } catch (e) {
         console.error('Error loading LocalStorage', e);
       }
-
       const currentYear = new Date().getFullYear().toString();
+      if (config.salario !== undefined) { config = { [currentYear]: config }; }
+      else if (Object.keys(config).length === 0) { config = { [currentYear]: { ...DEFAULT_CONFIG } }; }
       
-      try {
-        if (config.salario !== undefined) {
-          // Migrate old config format
-          config = { [currentYear]: config };
-          localStorage.setItem(STORAGE_KEYS.CONFIG, JSON.stringify(config));
-        } else if (Object.keys(config).length === 0) {
-          config = { [currentYear]: { ...DEFAULT_CONFIG } };
-        }
-      } catch (e) {
-        // Fallback if localStorage writes are completely disabled
-        if (config.salario !== undefined) {
-          config = { [currentYear]: config };
-        } else if (Object.keys(config).length === 0) {
-          config = { [currentYear]: { ...DEFAULT_CONFIG } };
-        }
-      }
-
       setState({ data, extras, config, patron, start });
       setIsLoaded(true);
-
-      // Check cloud sync on mount
-      try {
-        const CLOUD_URL = 'https://jstony2000.github.io/TONY/nomina_backup.json';
-        const res = await fetch(CLOUD_URL + '?t=' + Date.now());
-        if (res.ok) {
-          const cloudData = await res.json();
-          const hasLocalData = Object.keys(data).length > 0;
-          if (!hasLocalData) {
-            importData(cloudData);
-          } else {
-            setShowSyncDialog(cloudData);
-          }
-        }
-      } catch (e) {
-        // Ignore fetch errors to prevent blocking
-      }
     };
+    if (!user) loadLocal();
+  }, [user]);
 
-    loadData();
-  }, []);
+  // 2. Firebase Sync Logic
+  useEffect(() => {
+    if (!user) return;
 
-  const saveState = (newState: Partial<AppState>) => {
+    // A. Sync User Profile (Settings)
+    const userRef = doc(db, 'users', user.uid);
+    const unsubProfile = onSnapshot(userRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const cloudSettings = docSnap.data();
+        setState(prev => ({
+          ...prev,
+          patron: cloudSettings.patron || prev.patron,
+          start: cloudSettings.start || prev.start,
+          config: cloudSettings.config || prev.config
+        }));
+      } else {
+        // First time user? Push local settings to cloud
+        setDoc(userRef, {
+          patron: state.patron,
+          start: state.start,
+          config: state.config
+        });
+      }
+    });
+
+    // B. Sync Turns Collection
+    const turnsRef = collection(db, 'users', user.uid, 'turns');
+    const unsubTurns = onSnapshot(turnsRef, (querySnap) => {
+      const newData: Record<string, number> = {};
+      const newExtras: Record<string, number> = {};
+      
+      querySnap.forEach(docSnap => {
+        const turn = docSnap.data();
+        if (turn.type) newData[docSnap.id] = turn.type;
+        if (turn.extraHours) newExtras[docSnap.id] = turn.extraHours;
+      });
+
+      setState(prev => ({
+        ...prev,
+        data: newData,
+        extras: newExtras
+      }));
+    });
+
+    return () => {
+      unsubProfile();
+      unsubTurns();
+    };
+  }, [user]);
+
+  const saveState = async (newState: Partial<AppState>) => {
+    // 1. Update Local State
     setState(prev => {
       const updated = { ...prev, ...newState };
+      
+      // 2. Persist to LocalStorage (always as fallback)
       try {
         if (newState.data) localStorage.setItem(STORAGE_KEYS.DATA, JSON.stringify(updated.data));
         if (newState.extras) localStorage.setItem(STORAGE_KEYS.EXTRAS, JSON.stringify(updated.extras));
@@ -121,30 +144,74 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         if (newState.patron) localStorage.setItem(STORAGE_KEYS.PATRON, JSON.stringify(updated.patron));
         if (newState.start) localStorage.setItem(STORAGE_KEYS.START, updated.start);
       } catch (e) {
-        console.warn('Storage disabled in preview');
+        console.warn('Storage disabled');
       }
+
+      // 3. Persist to Firestore if user logged in
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        
+        // Settings update
+        if (newState.patron || newState.start || newState.config) {
+          const up: any = {};
+          if (newState.patron) up.patron = newState.patron;
+          if (newState.start) up.start = newState.start;
+          if (newState.config) up.config = newState.config;
+          updateDoc(userRef, up).catch(e => {
+            if (e.code === 'not-found') setDoc(userRef, up);
+          });
+        }
+      }
+
       return updated;
     });
   };
 
-  const updateData = (date: string, type: number) => {
-    const newData = { ...state.data };
-    if (type === 0) {
-      delete newData[date];
+  const updateData = async (date: string, type: number) => {
+    if (user) {
+      const turnRef = doc(db, 'users', user.uid, 'turns', date);
+      if (type === 0) {
+        // Check if we need to fully delete or just clear type
+        const turnSnap = await getDoc(turnRef);
+        if (turnSnap.exists() && turnSnap.data().extraHours) {
+          updateDoc(turnRef, { type: 0 });
+        } else {
+          const batch = writeBatch(db);
+          batch.delete(turnRef);
+          await batch.commit();
+        }
+      } else {
+        setDoc(turnRef, { type }, { merge: true });
+      }
     } else {
-      newData[date] = type;
+      const newData = { ...state.data };
+      if (type === 0) delete newData[date];
+      else newData[date] = type;
+      saveState({ data: newData });
     }
-    saveState({ data: newData });
   };
 
-  const updateExtra = (date: string, hours: number) => {
-    const newExtras = { ...state.extras };
-    if (hours === 0 || isNaN(hours)) {
-      delete newExtras[date];
+  const updateExtra = async (date: string, hours: number) => {
+    if (user) {
+      const turnRef = doc(db, 'users', user.uid, 'turns', date);
+      if (hours === 0 || isNaN(hours)) {
+        const turnSnap = await getDoc(turnRef);
+        if (turnSnap.exists() && turnSnap.data().type) {
+          updateDoc(turnRef, { extraHours: 0 });
+        } else {
+          const batch = writeBatch(db);
+          batch.delete(turnRef);
+          await batch.commit();
+        }
+      } else {
+        setDoc(turnRef, { extraHours: hours }, { merge: true });
+      }
     } else {
-      newExtras[date] = hours;
+      const newExtras = { ...state.extras };
+      if (hours === 0 || isNaN(hours)) delete newExtras[date];
+      else newExtras[date] = hours;
+      saveState({ extras: newExtras });
     }
-    saveState({ extras: newExtras });
   };
 
   const updateConfig = (year: string, newConfig: any) => {
@@ -161,15 +228,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     saveState({ start: date });
   };
 
-  const applyPatron = (year: number, refMonday: Date) => {
+  const applyPatron = async (year: number, refMonday: Date) => {
     const newData = { ...state.data };
-    // Remove existing data for the year
     Object.keys(newData).forEach(key => {
       if (key.startsWith(year.toString())) delete newData[key];
     });
 
     const d = new Date(year, 0, 1, 12, 0, 0);
     const end = new Date(year, 11, 31, 12, 0, 0);
+
+    const updates: Record<string, number> = {};
 
     while (d <= end) {
       const diff = Math.round((d.getTime() - refMonday.getTime()) / 86400000);
@@ -179,59 +247,57 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       if (state.patron[pIdx] !== 1) {
         const w = d.getDay();
         const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        newData[dateStr] = (w === 0 || w === 6) ? 2 : 1;
+        const type = (w === 0 || w === 6) ? 2 : 1;
+        newData[dateStr] = type;
+        updates[dateStr] = type;
       }
       d.setDate(d.getDate() + 1);
+    }
+
+    if (user) {
+      // For large updates, we'd use batches, but let's just update local then push
+      // Optimization: push in chunks or just handle via saveState logic if it were simpler
+      // To ensure cloud sync, we'll push the whole 'newData' or just the new ones
+      const batch = writeBatch(db);
+      Object.entries(updates).forEach(([date, type]) => {
+        const ref = doc(db, 'users', user.uid, 'turns', date);
+        batch.set(ref, { type }, { merge: true });
+      });
+      await batch.commit();
     }
     saveState({ data: newData });
   };
 
-  const resetYear = (year: number) => {
+  const resetYear = async (year: number) => {
     const newData = { ...state.data };
+    const toDelete: string[] = [];
     Object.keys(newData).forEach(key => {
-      if (key.startsWith(year.toString())) delete newData[key];
+      if (key.startsWith(year.toString())) {
+        delete newData[key];
+        toDelete.push(key);
+      }
     });
+
+    if (user) {
+      const batch = writeBatch(db);
+      for (const date of toDelete) {
+        const ref = doc(db, 'users', user.uid, 'turns', date);
+        batch.delete(ref);
+      }
+      await batch.commit();
+    }
     saveState({ data: newData });
   };
 
   if (!isLoaded) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', backgroundColor: '#050505', color: 'red', fontSize: '24px' }}>
-      CARGANDO...
+    <div className="flex items-center justify-center h-screen bg-[#050505] text-[#00e676] font-black text-2xl animate-pulse">
+      CONECTANDO...
     </div>
   );
 
   return (
     <AppContext.Provider value={{ state, updateData, updateExtra, updateConfig, updatePatron, updateStart, applyPatron, resetYear, importData }}>
       {children}
-      
-      {showSyncDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 max-w-sm w-full text-center">
-            <div className="text-4xl mb-4">☁️</div>
-            <h3 className="text-xl font-bold text-white mb-2">Copia en la Nube</h3>
-            <p className="text-zinc-400 text-sm mb-6">
-              Hay una copia de seguridad disponible en GitHub. ¿Deseas sobrescribir tus datos locales con los de la nube?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowSyncDialog(null)}
-                className="flex-1 px-4 py-2 bg-zinc-800 text-white rounded-lg font-medium"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => {
-                  importData(showSyncDialog);
-                  setShowSyncDialog(null);
-                }}
-                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg font-medium"
-              >
-                Sincronizar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </AppContext.Provider>
   );
 };
