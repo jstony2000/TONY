@@ -349,67 +349,67 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                 <table className="w-full text-right border-collapse">
                   <thead>
                     <tr className="text-gray-600 border-b border-black text-[10px] sm:text-[11px]">
-                      <th className="text-left py-1 w-[45%] pr-2">CONCEPTO</th>
-                      <th className="py-1 w-[15%] text-center">UNID.</th>
-                      <th className="py-1 w-[20%] text-center">PRECIO</th>
-                      <th className="py-1 w-[20%] text-right">TOTAL</th>
+                      <th className="text-left py-1 pr-2">CONCEPTO</th>
+                      <th className="py-1 px-1 text-center min-w-[50px]">UNID.</th>
+                      <th className="py-1 px-1 text-center min-w-[70px]">PRECIO</th>
+                      <th className="py-1 pl-2 text-right min-w-[90px]">TOTAL</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
                     <tr>
                       <td className="text-left font-bold py-1.5 pr-2">Salario Base</td>
-                      <td className="py-1.5 text-center">30.00</td>
-                      <td className="py-1.5 text-center">-</td>
-                      <td className="py-1.5 text-right">{fmtM(payroll.impBase)} €</td>
+                      <td className="py-1.5 px-1 text-center font-mono">30.00</td>
+                      <td className="py-1.5 px-1 text-center">-</td>
+                      <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impBase)} €</td>
                     </tr>
                     {payroll.impPagaExtra > 0 && (
                       <tr>
                         <td className="text-left font-bold py-1.5 pr-2">Paga Extra</td>
-                        <td className="py-1.5 text-center">1.00</td>
-                        <td className="py-1.5 text-center">{fmtM(config.pagaExtra)} €</td>
-                        <td className="py-1.5 text-right">{fmtM(payroll.impPagaExtra)} €</td>
+                        <td className="py-1.5 px-1 text-center font-mono">1.00</td>
+                        <td className="py-1.5 px-1 text-center font-mono">{fmtM(config.pagaExtra)}</td>
+                        <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impPagaExtra)} €</td>
                       </tr>
                     )}
-                      <tr>
-                        <td className="text-left font-bold py-1.5 pr-2">Plus Nocturnidad (K05)</td>
-                        <td className="py-1.5 text-center">{fmtN(payroll.hNoche)}</td>
-                        <td className="py-1.5 text-center">{fmtM(config.noche)} €</td>
-                         <td className="py-1.5 text-right">{fmtM(payroll.impNoche)} €</td>
-                      </tr>
-                      <tr>
-                        <td className="text-left font-bold py-1.5 pr-2">Garantía (K75)</td>
-                        <td className="py-1.5 text-center">{fmtN(payroll.hGarantia)}</td>
-                        <td className="py-1.5 text-center">{fmtM(config.garantia)} €</td>
-                        <td className="py-1.5 text-right">{fmtM(payroll.impGarantia)} €</td>
-                      </tr>
-                      <tr>
-                        <td className="text-left font-bold py-1.5 pr-2">Festivo (KA9)</td>
-                        <td className="py-1.5 text-center">{fmtN(payroll.hFestivo)}</td>
-                        <td className="py-1.5 text-center">{fmtM(config.festivo)} €</td>
-                         <td className="py-1.5 text-right">{fmtM(payroll.impFestivo)} €</td>
-                      </tr>
+                    <tr>
+                      <td className="text-left font-bold py-1.5 pr-2">Plus Nocturnidad (K05)</td>
+                      <td className="py-1.5 px-1 text-center font-mono">{fmtN(payroll.hNoche)}</td>
+                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{fmtM(config.noche)}</td>
+                      <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impNoche)} €</td>
+                    </tr>
+                    <tr>
+                      <td className="text-left font-bold py-1.5 pr-2">Garantía (K75)</td>
+                      <td className="py-1.5 px-1 text-center font-mono">{fmtN(payroll.hGarantia)}</td>
+                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{fmtM(config.garantia)}</td>
+                      <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impGarantia)} €</td>
+                    </tr>
+                    <tr>
+                      <td className="text-left font-bold py-1.5 pr-2">Festivo (KA9)</td>
+                      <td className="py-1.5 px-1 text-center font-mono">{fmtN(payroll.hFestivo)}</td>
+                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{fmtM(config.festivo)}</td>
+                      <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impFestivo)} €</td>
+                    </tr>
                     {payroll.impOtros > 0 && (
                       <tr>
                         <td className="text-left font-bold py-1.5 pr-2">Otros (K70, etc)</td>
-                        <td className="py-1.5 text-center">1.00</td>
-                        <td className="py-1.5 text-center">-</td>
-                        <td className="py-1.5 text-right">{fmtM(payroll.impOtros)} €</td>
+                        <td className="py-1.5 px-1 text-center font-mono">1.00</td>
+                        <td className="py-1.5 px-1 text-center">-</td>
+                        <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impOtros)} €</td>
                       </tr>
                     )}
                     {payroll.hExtraMes > 0 && (
                       <tr>
-                        <td className="text-left font-bold py-1.5 pr-2">H. Extra {monthParams.cobrarExtras ? '(Cobro)' : '(Bolsa)'}</td>
-                        <td className="py-1.5 text-center">{payroll.hExtraMes.toFixed(2)}</td>
-                        <td className="py-1.5 text-center">{monthParams.cobrarExtras ? `${fmtM(config.precioExtra)} €` : '-'}</td>
-                        <td className="py-1.5 text-right">{monthParams.cobrarExtras ? `${fmtM(payroll.impExtras)} €` : '(0,00 €)'}</td>
+                        <td className="text-left font-bold py-1.5 pr-2 leading-tight">H. Extra {monthParams.cobrarExtras ? '(Cobro)' : '(Bolsa)'}</td>
+                        <td className="py-1.5 px-1 text-center font-mono">{payroll.hExtraMes.toFixed(2)}</td>
+                        <td className="py-1.5 px-1 text-center font-mono text-gray-600">{monthParams.cobrarExtras ? fmtM(config.precioExtra) : '-'}</td>
+                        <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{monthParams.cobrarExtras ? `${fmtM(payroll.impExtras)} €` : '(0,00 €)'}</td>
                       </tr>
                     )}
                     {payroll.valPrima > 0 && (
                       <tr>
                         <td className="text-left font-bold py-1.5 pr-2">Prima / Atrasos</td>
-                        <td className="py-1.5 text-center">1.00</td>
-                        <td className="py-1.5 text-center">-</td>
-                        <td className="py-1.5 text-right">{fmtM(payroll.valPrima)} €</td>
+                        <td className="py-1.5 px-1 text-center font-mono">1.00</td>
+                        <td className="py-1.5 px-1 text-center">-</td>
+                        <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.valPrima)} €</td>
                       </tr>
                     )}
                   </tbody>
