@@ -104,6 +104,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           config: state.config
         });
       }
+      // If we are waiting for initial load, this helps
+      if (!isLoaded) setIsLoaded(true);
     });
 
     // B. Sync Turns Collection
@@ -123,6 +125,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         data: newData,
         extras: newExtras
       }));
+      // Ensure app loads even if user has no turns yet
+      setIsLoaded(true);
     });
 
     return () => {

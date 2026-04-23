@@ -29,12 +29,12 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135679.png',
+              src: 'icono.png',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'https://cdn-icons-png.flaticon.com/512/3135/3135679.png',
+              src: 'icono.png',
               sizes: '512x512',
               type: 'image/png'
             }
