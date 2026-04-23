@@ -370,27 +370,27 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                         <td className="py-1.5 text-right">{fmtM(payroll.impPagaExtra)} €</td>
                       </tr>
                     )}
-                    <tr>
-                      <td className="text-left font-bold py-1.5 pr-2">P. Nocturnidad</td>
-                      <td className="py-1.5 text-center">{fmtN(payroll.hNoche)}</td>
-                      <td className="py-1.5 text-center">{fmtM(config.noche)} €</td>
-                      <td className="py-1.5 text-right">{fmtM(payroll.impNoche)} €</td>
-                    </tr>
-                    <tr>
-                      <td className="text-left font-bold py-1.5 pr-2">Garantía K75</td>
-                      <td className="py-1.5 text-center">{fmtN(payroll.hGarantia)}</td>
-                      <td className="py-1.5 text-center">{fmtM(config.garantia)} €</td>
-                      <td className="py-1.5 text-right">{fmtM(payroll.impGarantia)} €</td>
-                    </tr>
-                    <tr>
-                      <td className="text-left font-bold py-1.5 pr-2">Festivo KA9</td>
-                      <td className="py-1.5 text-center">{fmtN(payroll.hFestivo)}</td>
-                      <td className="py-1.5 text-center">{fmtM(config.festivo)} €</td>
-                      <td className="py-1.5 text-right">{fmtM(payroll.impFestivo)} €</td>
-                    </tr>
+                      <tr>
+                        <td className="text-left font-bold py-1.5 pr-2">Plus Nocturnidad (K05)</td>
+                        <td className="py-1.5 text-center">{fmtN(payroll.hNoche)}</td>
+                        <td className="py-1.5 text-center">{fmtM(config.noche)} €</td>
+                         <td className="py-1.5 text-right">{fmtM(payroll.impNoche)} €</td>
+                      </tr>
+                      <tr>
+                        <td className="text-left font-bold py-1.5 pr-2">Garantía (K75)</td>
+                        <td className="py-1.5 text-center">{fmtN(payroll.hGarantia)}</td>
+                        <td className="py-1.5 text-center">{fmtM(config.garantia)} €</td>
+                        <td className="py-1.5 text-right">{fmtM(payroll.impGarantia)} €</td>
+                      </tr>
+                      <tr>
+                        <td className="text-left font-bold py-1.5 pr-2">Festivo (KA9)</td>
+                        <td className="py-1.5 text-center">{fmtN(payroll.hFestivo)}</td>
+                        <td className="py-1.5 text-center">{fmtM(config.festivo)} €</td>
+                         <td className="py-1.5 text-right">{fmtM(payroll.impFestivo)} €</td>
+                      </tr>
                     {payroll.impOtros > 0 && (
                       <tr>
-                        <td className="text-left font-bold py-1.5 pr-2">Otros Pluses</td>
+                        <td className="text-left font-bold py-1.5 pr-2">Otros (K70, etc)</td>
                         <td className="py-1.5 text-center">1.00</td>
                         <td className="py-1.5 text-center">-</td>
                         <td className="py-1.5 text-right">{fmtM(payroll.impOtros)} €</td>
