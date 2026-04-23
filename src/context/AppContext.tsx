@@ -81,9 +81,14 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     if (!user) loadLocal();
   }, [user]);
 
+  const [hasSynced, setHasSynced] = useState(false);
+
   // 2. Firebase Sync Logic
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setHasSynced(false);
+      return;
+    }
 
     // A. Sync User Profile (Settings)
     const userRef = doc(db, 'users', user.uid);
@@ -104,20 +109,34 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           config: state.config
         });
       }
-      // If we are waiting for initial load, this helps
       if (!isLoaded) setIsLoaded(true);
     });
 
     // B. Sync Turns Collection
     const turnsRef = collection(db, 'users', user.uid, 'turns');
-    const unsubTurns = onSnapshot(turnsRef, (querySnap) => {
+    const unsubTurns = onSnapshot(turnsRef, async (querySnap) => {
+      if (querySnap.empty && !hasSynced) {
+        // Migration: Cloud empty but local has data? Push it.
+        const hasLocalData = Object.keys(state.data).length > 0 || Object.keys(state.extras).length > 0;
+        if (hasLocalData) {
+          const batch = writeBatch(db);
+          Object.entries(state.data).forEach(([date, type]) => {
+            batch.set(doc(db, 'users', user.uid, 'turns', date), { type }, { merge: true });
+          });
+          Object.entries(state.extras).forEach(([date, extraHours]) => {
+            batch.set(doc(db, 'users', user.uid, 'turns', date), { extraHours }, { merge: true });
+          });
+          await batch.commit();
+        }
+      }
+
       const newData: Record<string, number> = {};
       const newExtras: Record<string, number> = {};
       
       querySnap.forEach(docSnap => {
         const turn = docSnap.data();
-        if (turn.type) newData[docSnap.id] = turn.type;
-        if (turn.extraHours) newExtras[docSnap.id] = turn.extraHours;
+        if (turn.type !== undefined) newData[docSnap.id] = turn.type;
+        if (turn.extraHours !== undefined) newExtras[docSnap.id] = turn.extraHours;
       });
 
       setState(prev => ({
@@ -125,7 +144,8 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         data: newData,
         extras: newExtras
       }));
-      // Ensure app loads even if user has no turns yet
+      
+      setHasSynced(true);
       setIsLoaded(true);
     });
 
@@ -164,6 +184,22 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
           updateDoc(userRef, up).catch(e => {
             if (e.code === 'not-found') setDoc(userRef, up);
           });
+        }
+
+        // Bulk data update (for imports)
+        if (newState.data || newState.extras) {
+          const batch = writeBatch(db);
+          if (newState.data) {
+            Object.entries(newState.data).forEach(([date, type]) => {
+              batch.set(doc(db, 'users', user.uid, 'turns', date), { type }, { merge: true });
+            });
+          }
+          if (newState.extras) {
+            Object.entries(newState.extras).forEach(([date, extraHours]) => {
+              batch.set(doc(db, 'users', user.uid, 'turns', date), { extraHours }, { merge: true });
+            });
+          }
+          batch.commit().catch(console.error);
         }
       }
 
