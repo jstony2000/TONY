@@ -1,5 +1,6 @@
 // Sync Nudge
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { Calendar } from './components/Calendar';
@@ -14,6 +15,7 @@ const AppContent = () => {
   const { state, updateData } = useAppContext();
   const { user, login, logout } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [direction, setDirection] = useState(0); // -1 for left, 1 for right
   const [editMode, setEditMode] = useState(0); // 0: Locked, 1: Shifts, 2: Extras
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isExtraModalOpen, setIsExtraModalOpen] = useState(false);
@@ -21,11 +23,22 @@ const AppContent = () => {
   const [selectedDisplayDate, setSelectedDisplayDate] = useState('');
 
   const handlePrevMonth = () => {
+    setDirection(-1);
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
   };
 
   const handleNextMonth = () => {
+    setDirection(1);
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
+  };
+
+  const handleDragEnd = (_: any, info: any) => {
+    const swipeThreshold = 50;
+    if (info.offset.x > swipeThreshold) {
+      handlePrevMonth();
+    } else if (info.offset.x < -swipeThreshold) {
+      handleNextMonth();
+    }
   };
 
   const handleToday = () => {
@@ -115,7 +128,25 @@ const AppContent = () => {
 
         <MiniStats currentDate={currentDate} />
         
-        <Calendar currentDate={currentDate} editMode={editMode} onDayClick={handleDayClick} />
+        <div className="relative flex-1 overflow-hidden">
+          <AnimatePresence initial={false} custom={direction}>
+            <motion.div
+              key={currentDate.toISOString()}
+              custom={direction}
+              initial={{ x: direction > 0 ? 300 : -300, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: direction > 0 ? -300 : 300, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.2}
+              onDragEnd={handleDragEnd}
+              className="w-full absolute inset-0"
+            >
+              <Calendar currentDate={currentDate} editMode={editMode} onDayClick={handleDayClick} />
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
         {/* Legend */}
         <div className="flex justify-center flex-wrap gap-2.5 p-2 bg-[#080808] border-t border-gray-800 shrink-0 text-[0.65rem] text-gray-400 uppercase font-bold">
