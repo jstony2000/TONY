@@ -257,8 +257,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#1e1e1e] text-white border-gray-800 w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto px-4 sm:px-6">
-        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b border-gray-800">
+      <DialogContent className="bg-[#1e1e1e] text-white border-gray-800 w-[95vw] max-w-5xl max-h-[95vh] overflow-y-auto px-4 sm:px-8">
+        <DialogHeader className="flex flex-row items-center justify-between pb-4 border-b border-gray-800">
           <DialogTitle className="flex items-center text-xl font-black">
             <span className="mr-2">⚙️ AÑO:</span>
             <div 
