@@ -95,7 +95,7 @@ export const Calendar: React.FC<CalendarProps> = ({ currentDate, editMode, onDay
         <div><span className="hidden sm:inline">SÁBADO</span><span className="sm:hidden">SAB</span></div>
         <div><span className="hidden sm:inline">DOMINGO</span><span className="sm:hidden">DOM</span></div>
       </div>
-      <div className="grid grid-cols-7 gap-1 p-1">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 p-0.5 sm:p-1">
         {daysRender.map((item, idx) => {
           const fy = item.date.getFullYear();
           const fm = item.date.getMonth();

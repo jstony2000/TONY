@@ -74,40 +74,41 @@ const AppContent = () => {
       <div className="w-full max-w-[600px] flex flex-col bg-[#050505] border-x border-gray-800" style={{ minHeight: '100vh', width: '100%', maxWidth: '600px', position: 'relative' }}>
         
         {/* Header */}
-        <div className="flex justify-between items-center px-4 py-2 bg-[#111] border-b border-gray-800 shrink-0 h-[60px]">
-          <button onClick={handlePrevMonth} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-xl font-black hover:bg-gray-700">
-            <ChevronLeft />
+        <div className="flex justify-between items-center px-2 sm:px-4 py-2 bg-[#111] border-b border-gray-800 shrink-0 min-h-[60px]">
+          <button onClick={handlePrevMonth} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg sm:text-xl font-black hover:bg-gray-700">
+            <ChevronLeft size={18} />
           </button>
-          <h2 onClick={handleToday} className="m-0 text-white uppercase font-black text-xl sm:text-2xl cursor-pointer hover:text-gray-300">
+          
+          <h2 onClick={handleToday} className="flex-1 text-center m-0 px-1 text-white uppercase font-black text-sm sm:text-2xl cursor-pointer hover:text-gray-300 whitespace-nowrap overflow-visible">
             {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
           </h2>
-          <div className="flex gap-2">
+
+          <div className="flex gap-1 sm:gap-2">
             <button 
               onClick={user ? logout : login} 
-              className={`w-10 h-10 flex items-center justify-center border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
+              className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
               title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
             >
-              {user ? <Cloud size={20} /> : <UserIcon size={20} />}
+              {user ? <Cloud size={16} /> : <UserIcon size={16} />}
             </button>
-            <button onClick={handleNextMonth} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-xl font-black hover:bg-gray-700">
-              <ChevronRight />
+            <button onClick={handleNextMonth} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg sm:text-xl font-black hover:bg-gray-700">
+              <ChevronRight size={18} />
             </button>
             <button 
               onClick={toggleLock} 
-              className={`w-10 h-10 flex items-center justify-center border border-gray-700 rounded transition-colors ${
+              className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border border-gray-700 rounded transition-colors ${
                 editMode === 0 ? 'bg-red-600 hover:bg-red-700' : 
                 editMode === 1 ? 'bg-green-500 hover:bg-green-600' : 
                 'bg-orange-500 hover:bg-orange-600'
               }`}
-              title={editMode === 0 ? "Bloqueado" : editMode === 1 ? "Modo Turnos" : "Modo Extras"}
             >
-              {editMode === 0 ? <Lock size={20} /> : editMode === 1 ? <Unlock size={20} /> : <Clock size={20} />}
+              {editMode === 0 ? <Lock size={16} /> : editMode === 1 ? <Unlock size={16} /> : <Clock size={16} />}
             </button>
-            <button onClick={handleBackup} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
-              <Save size={20} />
+            <button onClick={handleBackup} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
+              <Save size={16} />
             </button>
-            <button onClick={() => setIsConfigOpen(true)} className="w-10 h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
-              <Settings size={20} />
+            <button onClick={() => setIsConfigOpen(true)} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
+              <Settings size={16} />
             </button>
           </div>
         </div>
