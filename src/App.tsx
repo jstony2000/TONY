@@ -32,12 +32,27 @@ const AppContent = () => {
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
   };
 
-  const handleDragEnd = (_: any, info: any) => {
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchStart - touchEnd;
     const swipeThreshold = 50;
-    if (info.offset.x > swipeThreshold) {
-      handlePrevMonth();
-    } else if (info.offset.x < -swipeThreshold) {
+
+    if (distance > swipeThreshold) {
       handleNextMonth();
+    } else if (distance < -swipeThreshold) {
+      handlePrevMonth();
     }
   };
 
@@ -137,11 +152,10 @@ const AppContent = () => {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: direction > 0 ? -300 : 300, opacity: 0 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              drag="x"
-              dragConstraints={{ left: 0, right: 0 }}
-              dragElastic={0.2}
-              onDragEnd={handleDragEnd}
-              className="w-full absolute inset-0"
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
+              className="w-full absolute inset-0 touch-pan-y"
             >
               <Calendar currentDate={currentDate} editMode={editMode} onDayClick={handleDayClick} />
             </motion.div>

@@ -115,7 +115,7 @@ export const Calendar: React.FC<CalendarProps> = ({ currentDate, editMode, onDay
                 "relative flex flex-col items-center justify-center min-h-[75px] sm:min-h-[90px] rounded-lg cursor-pointer transition-all select-none",
                 cls,
                 !item.isCurrentMonth && "opacity-35",
-                isToday && "today-pulse ring-2 ring-white z-[10] border-none shadow-2xl scale-105",
+                isToday && "ring-[3px] sm:ring-4 ring-white z-[10] border-none shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-105 sm:scale-110",
                 editMode === 0 ? "cursor-default" : "cursor-pointer"
               )}
               style={{ backgroundColor: bgColor }}
