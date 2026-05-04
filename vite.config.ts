@@ -18,33 +18,28 @@ export default defineConfig(({mode}) => {
       VitePWA({
         registerType: 'autoUpdate',
         devOptions: {
-          enabled: false // STRICTLY FALSE for dev environment to avoid caching issues in AI Studio
+          enabled: false
         },
         manifest: {
-          name: 'Nómina App (Calculadora)',
-          short_name: 'NóminaApp',
-          description: 'Herramienta de cálculo y proyección de turnos y nóminas.',
+          name: 'Nómina',
+          short_name: 'Nómina',
+          description: 'Herramienta de cálculo y proyección de turnos',
           theme_color: '#050505',
           background_color: '#050505',
           display: 'standalone',
+          orientation: 'portrait',
           icons: [
             {
               src: 'icono.png',
               sizes: '192x192',
               type: 'image/png',
-              purpose: 'any'
+              purpose: 'any maskable'
             },
             {
               src: 'icono.png',
               sizes: '512x512',
               type: 'image/png',
-              purpose: 'any'
-            },
-            {
-              src: 'icono.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'maskable'
+              purpose: 'any maskable'
             }
           ]
         }

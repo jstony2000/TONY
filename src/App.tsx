@@ -48,7 +48,6 @@ const AppContent = () => {
     if (!touchStart || !touchEnd) return;
     const distance = touchStart - touchEnd;
     const swipeThreshold = 50;
-
     if (distance > swipeThreshold) {
       handleNextMonth();
     } else if (distance < -swipeThreshold) {
