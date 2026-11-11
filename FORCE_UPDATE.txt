@@ -1,2 +1,2 @@
-Ultima actualizacion forzada: 2023-04-23
-Este archivo sirve para obligar al sistema de sincronizacion a detectar cambios.
+Ultima actualizacion forzada: 2026-11-11 V51 PRO
+Auditoria integral PWA, Firebase Optimistic UI, Pincel de Turnos y Recibo en Vivo.
