@@ -10,6 +10,7 @@ import { ConfigModal } from './components/ConfigModal';
 import { ExtraHoursModal } from './components/ExtraHoursModal';
 import { useAppContext } from './context/AppContext';
 import { Lock, Unlock, Settings, Save, ChevronLeft, ChevronRight, Clock, User as UserIcon, LogOut, Cloud } from 'lucide-react';
+import { APP_VERSION } from './lib/constants';
 
 const AppContent = () => {
   const { state, updateData } = useAppContext();
@@ -106,9 +107,14 @@ const AppContent = () => {
             <ChevronLeft size={18} />
           </button>
           
-          <h2 onClick={handleToday} className="flex-1 text-center m-0 px-1 text-white uppercase font-black text-sm sm:text-2xl cursor-pointer hover:text-gray-300 whitespace-nowrap overflow-visible">
-            {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
-          </h2>
+          <div onClick={handleToday} className="flex-1 flex flex-col items-center justify-center m-0 px-1 cursor-pointer hover: opacity-90">
+            <h2 className="text-white uppercase font-black text-sm sm:text-xl leading-tight whitespace-nowrap">
+              {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
+            </h2>
+            <span className="text-[9px] font-mono font-bold text-[#2979ff] bg-[#2979ff]/15 border border-[#2979ff]/40 px-1.5 py-0 rounded mt-0.5">
+              {APP_VERSION}
+            </span>
+          </div>
 
           <div className="flex gap-1 sm:gap-2">
             <button 
