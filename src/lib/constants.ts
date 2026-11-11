@@ -1,3 +1,5 @@
+export const APP_VERSION = 'V50 PRO';
+
 export const STORAGE_KEYS = {
   DATA: 'nomina_stellantis_universal_data_v3',
   CONFIG: 'nomina_stellantis_universal_config_v4',
@@ -31,13 +33,15 @@ export const COLORS = {
 export const DEFAULT_CONFIG = {
   salario: 2516.37,
   pagaExtra: 2516.37,
-  noche: 3.1517,
+  noche: 3.151789,
   garantia: 2.2909,
   festivo: 7.9452,
-  deduccion: 0.2709,
+  deduccion: 20.64,
+  prorrataSS: 443.18,
+  f99: 1.22,
   bolsa: 131.38,
   extraBase: 0,
-  otros: 16.96,
+  otros: 38.37,
   adecTotal: 8,
   mesesOtros: 12,
   precioExtra: 20.00,
