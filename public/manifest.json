@@ -1,14 +1,23 @@
 {
-  "name": "Nómina",
+  "name": "Nómina Stellantis V52 PRO",
   "short_name": "Nómina",
-  "start_url": ".",
-  "display": "standalone",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "display_override": ["fullscreen", "standalone"],
+  "orientation": "any",
   "background_color": "#050505",
   "theme_color": "#050505",
   "icons": [
     {
       "src": "icono.png",
-      "sizes": "48x48 72x72 96x96 128x128 144x144 152x152 192x192 256x256 384x384 512x512",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icono.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
