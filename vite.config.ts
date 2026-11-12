@@ -7,7 +7,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
   return {
-    base: './', // Use relative base path for Github Pages deployment compatibility
+    base: './',
     build: {
       outDir: 'dist',
       assetsDir: 'assets',
@@ -21,13 +21,16 @@ export default defineConfig(({mode}) => {
           enabled: false
         },
         manifest: {
-          name: 'Nómina',
+          name: 'Nómina Stellantis V52 PRO',
           short_name: 'Nómina',
           description: 'Herramienta de cálculo y proyección de turnos',
           theme_color: '#050505',
           background_color: '#050505',
-          display: 'standalone',
-          orientation: 'portrait',
+          display: 'fullscreen',
+          display_override: ['fullscreen', 'standalone'],
+          orientation: 'any',
+          start_url: './',
+          scope: './',
           icons: [
             {
               src: 'icono.png',
@@ -54,8 +57,6 @@ export default defineConfig(({mode}) => {
       },
     },
     server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };
