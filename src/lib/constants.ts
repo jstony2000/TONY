@@ -1,4 +1,4 @@
-export const APP_VERSION = 'V51 PRO';
+export const APP_VERSION = 'V52 PRO';
 
 export const STORAGE_KEYS = {
   DATA: 'nomina_stellantis_universal_data_v3',
