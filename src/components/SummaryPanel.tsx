@@ -1,57 +1,56 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
-import { getYearConfig, calculatePayrollForMonth } from '../lib/constants';
+import { SHIFT_TYPES } from '../lib/constants';
 
 interface SummaryPanelProps {
   currentDate: Date;
   onOpenPayroll?: () => void;
 }
 
-export const SummaryPanel = ({ currentDate, onOpenPayroll }: SummaryPanelProps) => {
+export const SummaryPanel = ({ currentDate }: SummaryPanelProps) => {
   const { state } = useAppContext();
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
-  const conf = getYearConfig(state.config, year);
-  const payroll = calculatePayrollForMonth(year, month, state.data, state.extras, conf);
+  let cT = 0, cN = 0, cF = 0;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
-  const fmtM = (n: number) => (n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  for (let d = 1; d <= daysInMonth; d++) {
+    const k = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const est = state.data[k] || 0;
+    if (est === SHIFT_TYPES.NOCHE) {
+      cN++;
+      cT++;
+    } else if (est === SHIFT_TYPES.FESTIVO) {
+      cN++;
+      cF++;
+      cT++;
+    } else if (est === SHIFT_TYPES.DIA) {
+      cT++;
+    }
+  }
+
+  const libres = daysInMonth - cT;
 
   return (
-    <div className="bg-[#111] border-t border-gray-800 flex-shrink-0 flex flex-col">
-      <div className="p-2.5 grid grid-cols-4 gap-2 text-center">
-        <div className="flex flex-col">
-          <span className="text-[0.55rem] text-gray-400 uppercase font-black mb-0.5">TRABAJADOS</span>
-          <span className="text-lg sm:text-2xl font-black text-white leading-none">{payroll.cT}</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[0.55rem] text-[#2979ff] uppercase font-black mb-0.5">NOCHES</span>
-          <span className="text-lg sm:text-2xl font-black text-white leading-none">{payroll.cN}</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[0.55rem] text-[#ff1744] uppercase font-black mb-0.5">FESTIVOS</span>
-          <span className="text-lg sm:text-2xl font-black text-white leading-none">{payroll.cF}</span>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[0.55rem] text-gray-400 uppercase font-black mb-0.5">LIBRES</span>
-          <span className="text-lg sm:text-2xl font-black text-white leading-none">{payroll.daysInMonth - payroll.cT}</span>
-        </div>
+    <div
+      className="bg-[#111] border-t border-gray-800 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] shrink-0 grid grid-cols-4 gap-2 text-center"
+    >
+      <div className="flex flex-col items-center justify-center">
+        <span className="text-[0.55rem] text-gray-400 uppercase font-black leading-tight">TRABAJADOS</span>
+        <span className="text-xl sm:text-2xl font-black text-white leading-tight mt-0.5">{cT}</span>
       </div>
-
-      <div
-        onClick={onOpenPayroll}
-        title="Toca para abrir el recibo detallado de este mes"
-        className="bg-[#0a0f1d] hover:bg-[#111a30] border-t border-[#2979ff]/30 px-3 py-1.5 flex items-center justify-between cursor-pointer transition-colors"
-      >
-        <div className="flex items-center gap-2 text-[0.68rem] sm:text-xs text-gray-300 font-mono">
-          <span className="text-gray-400 font-sans font-bold uppercase">BRUTO:</span>
-          <span className="font-bold text-white">{fmtM(payroll.totalBruto)} €</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs sm:text-sm font-mono">
-          <span className="text-[#2979ff] font-sans font-black uppercase text-[0.68rem] sm:text-xs">LÍQUIDO MES:</span>
-          <span className="font-black text-[#00e676]">{fmtM(payroll.liquido)} €</span>
-          <span className="text-[10px] text-[#2979ff] ml-0.5">↗</span>
-        </div>
+      <div className="flex flex-col items-center justify-center">
+        <span className="text-[0.55rem] text-[#2979ff] uppercase font-black leading-tight">NOCHES</span>
+        <span className="text-xl sm:text-2xl font-black text-white leading-tight mt-0.5">{cN}</span>
+      </div>
+      <div className="flex flex-col items-center justify-center">
+        <span className="text-[0.55rem] text-[#ff1744] uppercase font-black leading-tight">FESTIVOS</span>
+        <span className="text-xl sm:text-2xl font-black text-white leading-tight mt-0.5">{cF}</span>
+      </div>
+      <div className="flex flex-col items-center justify-center">
+        <span className="text-[0.55rem] text-gray-400 uppercase font-black leading-tight">LIBRES</span>
+        <span className="text-xl sm:text-2xl font-black text-white leading-tight mt-0.5">{libres}</span>
       </div>
     </div>
   );
