@@ -1,5 +1,5 @@
 // Sync Nudge
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -8,7 +8,7 @@ import { MiniStats } from './components/MiniStats';
 import { SummaryPanel } from './components/SummaryPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { ExtraHoursModal } from './components/ExtraHoursModal';
-import { Lock, Unlock, Settings, Save, ChevronLeft, ChevronRight, Clock, User as UserIcon, Cloud } from 'lucide-react';
+import { Lock, Unlock, Settings, Save, ChevronLeft, ChevronRight, Clock, User as UserIcon, Cloud, Maximize2, Minimize2 } from 'lucide-react';
 import { APP_VERSION, SHIFT_TYPES } from './lib/constants';
 
 const LEGEND_ITEMS = [
@@ -27,12 +27,63 @@ const AppContent = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [direction, setDirection] = useState(0);
   const [editMode, setEditMode] = useState(0); // 0: Locked, 1: Shifts, 2: Extras
-  const [activeBrush, setActiveBrush] = useState<number | null>(null); // null = rotar, 0..6 = pintar directo
+  const [activeBrush, setActiveBrush] = useState<number | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [initialConfigTab, setInitialConfigTab] = useState('nomina');
   const [isExtraModalOpen, setIsExtraModalOpen] = useState(false);
   const [selectedDateStr, setSelectedDateStr] = useState('');
   const [selectedDisplayDate, setSelectedDisplayDate] = useState('');
+  const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Detectar giro horizontal en móvil y estado de pantalla completa
+  useEffect(() => {
+    const checkViewport = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const landscape = w > h && h <= 580;
+      setIsLandscapeMobile(landscape);
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    checkViewport();
+    window.addEventListener('resize', checkViewport);
+    window.addEventListener('orientationchange', checkViewport);
+    document.addEventListener('fullscreenchange', checkViewport);
+    return () => {
+      window.removeEventListener('resize', checkViewport);
+      window.removeEventListener('orientationchange', checkViewport);
+      document.removeEventListener('fullscreenchange', checkViewport);
+    };
+  }, []);
+
+  // Activar pantalla completa automáticamente al primer toque en móvil si se abre desde navegador con barra URL
+  useEffect(() => {
+    const isStandalone =
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true;
+
+    if (isStandalone) return;
+
+    const tryAutoFullscreen = () => {
+      const isMobileDevice = 'ontouchstart' in window && Math.min(window.innerWidth, window.innerHeight) <= 600;
+      if (isMobileDevice && !document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    };
+
+    window.addEventListener('touchend', tryAutoFullscreen, { once: true, passive: true });
+    return () => window.removeEventListener('touchend', tryAutoFullscreen);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  };
 
   const handlePrevMonth = () => {
     setDirection(-1);
@@ -84,7 +135,6 @@ const AppContent = () => {
     if (editMode === 1) {
       const currentType = state.data[dateStr] || 0;
       if (activeBrush !== null) {
-        // Si ya tiene ese turno y pulsamos con el pincel, lo deja libre; si no, aplica el pincel en 1 toque
         const nextType = currentType === activeBrush ? 0 : activeBrush;
         updateData(dateStr, nextType);
       } else {
@@ -119,58 +169,78 @@ const AppContent = () => {
   };
 
   return (
-    <div className="flex justify-center bg-[#050505] text-white overflow-hidden select-none font-sans" style={{ minHeight: '100vh', width: '100vw', position: 'relative' }}>
-      <div className="w-full max-w-[600px] flex flex-col bg-[#050505] border-x border-gray-800" style={{ minHeight: '100vh', width: '100%', maxWidth: '600px', position: 'relative' }}>
-        
-        {/* Header */}
-        <div className="flex justify-between items-center px-2 sm:px-4 py-2 bg-[#111] border-b border-gray-800 shrink-0 min-h-[60px]">
-          <button onClick={handlePrevMonth} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg sm:text-xl font-black hover:bg-gray-700">
-            <ChevronLeft size={18} />
-          </button>
-          
-          <div onClick={handleToday} className="flex-1 flex flex-col items-center justify-center m-0 px-1 cursor-pointer hover:opacity-90">
-            <h2 className="text-white uppercase font-black text-sm sm:text-xl leading-tight whitespace-nowrap">
-              {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
-            </h2>
-            <span className="text-[9px] font-mono font-bold text-[#2979ff] bg-[#2979ff]/15 border border-[#2979ff]/40 px-1.5 py-0 rounded mt-0.5">
-              {APP_VERSION}
-            </span>
-          </div>
+    <div
+      className="flex justify-center bg-[#050505] text-white overflow-hidden select-none font-sans w-screen h-dvh max-h-dvh"
+    >
+      <div
+        className={`flex flex-col bg-[#050505] h-full max-h-full overflow-hidden ${
+          isLandscapeMobile
+            ? 'w-screen max-w-none border-0'
+            : 'w-full max-w-[600px] border-x border-gray-800'
+        }`}
+      >
+        {/* Header - Oculto en modo horizontal móvil */}
+        {!isLandscapeMobile && (
+          <div className="flex justify-between items-center px-2 sm:px-3 py-1.5 bg-[#111] border-b border-gray-800 shrink-0 min-h-[54px]">
+            <button onClick={handlePrevMonth} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg font-black hover:bg-gray-700">
+              <ChevronLeft size={18} />
+            </button>
+            
+            <div onClick={handleToday} className="flex-1 flex flex-col items-center justify-center m-0 px-1 cursor-pointer hover:opacity-90">
+              <h2 className="text-white uppercase font-black text-sm sm:text-xl leading-tight whitespace-nowrap">
+                {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
+              </h2>
+              <span className="text-[9px] font-mono font-bold text-[#2979ff] bg-[#2979ff]/15 border border-[#2979ff]/40 px-1.5 py-0 rounded mt-0.5">
+                {APP_VERSION}
+              </span>
+            </div>
 
-          <div className="flex gap-1 sm:gap-2">
-            <button 
-              onClick={user ? logout : login} 
-              className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
-              title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
-            >
-              {user ? <Cloud size={16} /> : <UserIcon size={16} />}
-            </button>
-            <button onClick={handleNextMonth} className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg sm:text-xl font-black hover:bg-gray-700">
-              <ChevronRight size={18} />
-            </button>
-            <button 
-              onClick={toggleLock} 
-              title={editMode === 0 ? "Bloqueado" : editMode === 1 ? "Modo Edición Turnos" : "Modo Horas Extra"}
-              className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center border border-gray-700 rounded transition-colors ${
-                editMode === 0 ? 'bg-red-600 hover:bg-red-700' : 
-                editMode === 1 ? 'bg-green-500 hover:bg-green-600' : 
-                'bg-orange-500 hover:bg-orange-600'
-              }`}
-            >
-              {editMode === 0 ? <Lock size={16} /> : editMode === 1 ? <Unlock size={16} /> : <Clock size={16} />}
-            </button>
-            <button onClick={handleBackup} title="Descargar copia de seguridad JSON" className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
-              <Save size={16} />
-            </button>
-            <button onClick={() => handleOpenConfigTab('nomina')} title="Configuración y Simulación de Nómina" className="w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
-              <Settings size={16} />
-            </button>
+            <div className="flex gap-1 sm:gap-1.5">
+              <button 
+                onClick={user ? logout : login} 
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
+                title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
+              >
+                {user ? <Cloud size={15} /> : <UserIcon size={15} />}
+              </button>
+              <button onClick={handleNextMonth} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg font-black hover:bg-gray-700">
+                <ChevronRight size={18} />
+              </button>
+              <button 
+                onClick={toggleLock} 
+                title={editMode === 0 ? "Bloqueado" : editMode === 1 ? "Modo Edición Turnos" : "Modo Horas Extra"}
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-700 rounded transition-colors ${
+                  editMode === 0 ? 'bg-red-600 hover:bg-red-700' : 
+                  editMode === 1 ? 'bg-green-500 hover:bg-green-600' : 
+                  'bg-orange-500 hover:bg-orange-600'
+                }`}
+              >
+                {editMode === 0 ? <Lock size={15} /> : editMode === 1 ? <Unlock size={15} /> : <Clock size={15} />}
+              </button>
+              <button
+                onClick={toggleFullscreen}
+                title="Pantalla completa (ocultar barra URL)"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-[#2979ff]"
+              >
+                {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+              </button>
+              <button onClick={handleBackup} title="Descargar copia de seguridad JSON" className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
+                <Save size={15} />
+              </button>
+              <button onClick={() => handleOpenConfigTab('nomina')} title="Configuración y Simulación de Nómina" className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
+                <Settings size={15} />
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
-        <MiniStats currentDate={currentDate} onOpenConfigTab={handleOpenConfigTab} />
+        {/* MiniStats - Oculto en modo horizontal móvil */}
+        {!isLandscapeMobile && (
+          <MiniStats currentDate={currentDate} onOpenConfigTab={handleOpenConfigTab} />
+        )}
         
-        <div className="relative flex-1 overflow-hidden">
+        {/* Calendario - Ocupa el 100% en horizontal y el espacio flexible en vertical */}
+        <div className="relative flex-1 min-h-0 overflow-hidden">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={currentDate.toISOString()}
@@ -182,40 +252,49 @@ const AppContent = () => {
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
-              className="w-full absolute inset-0 touch-pan-y"
+              className="w-full h-full absolute inset-0 touch-pan-y"
             >
-              <Calendar currentDate={currentDate} editMode={editMode} onDayClick={handleDayClick} />
+              <Calendar
+                currentDate={currentDate}
+                editMode={editMode}
+                onDayClick={handleDayClick}
+                isLandscapeMobile={isLandscapeMobile}
+              />
             </motion.div>
           </AnimatePresence>
         </div>
 
-        {/* Interactive Legend / Brush Selector */}
-        <div className="flex justify-center flex-wrap gap-1.5 sm:gap-2 p-1.5 bg-[#080808] border-t border-gray-800 shrink-0 text-[0.62rem] text-gray-400 uppercase font-bold">
-          {LEGEND_ITEMS.map(item => {
-            const isSelected = editMode === 1 && activeBrush === item.type;
-            return (
-              <button
-                key={item.type}
-                type="button"
-                onClick={() => {
-                  if (editMode !== 1) setEditMode(1);
-                  setActiveBrush(prev => prev === item.type ? null : item.type);
-                }}
-                title="Toca para activar/desactivar pincel directo de este turno"
-                className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-all cursor-pointer ${
-                  isSelected
-                    ? 'bg-[#2979ff]/25 text-white ring-1 ring-[#2979ff] scale-105'
-                    : 'hover:text-white'
-                }`}
-              >
-                <span className={`w-2.5 h-2.5 rounded-full inline-block ${item.dotClass}`}></span>
-                {item.label}
-              </button>
-            );
-          })}
-        </div>
+        {/* Leyenda y Contadores Inferiores - Ocultos en modo horizontal móvil */}
+        {!isLandscapeMobile && (
+          <>
+            <div className="flex justify-center flex-wrap gap-1.5 sm:gap-2 p-1.5 bg-[#080808] border-t border-gray-800 shrink-0 text-[0.6rem] text-gray-400 uppercase font-bold">
+              {LEGEND_ITEMS.map(item => {
+                const isSelected = editMode === 1 && activeBrush === item.type;
+                return (
+                  <button
+                    key={item.type}
+                    type="button"
+                    onClick={() => {
+                      if (editMode !== 1) setEditMode(1);
+                      setActiveBrush(prev => prev === item.type ? null : item.type);
+                    }}
+                    title="Toca para activar/desactivar pincel directo de este turno"
+                    className={`flex items-center gap-1 px-1.5 py-0.5 rounded transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#2979ff]/25 text-white ring-1 ring-[#2979ff] scale-105'
+                        : 'hover:text-white'
+                    }`}
+                  >
+                    <span className={`w-2.5 h-2.5 rounded-full inline-block ${item.dotClass}`}></span>
+                    {item.label}
+                  </button>
+                );
+              })}
+            </div>
 
-        <SummaryPanel currentDate={currentDate} onOpenPayroll={() => handleOpenConfigTab('nomina')} />
+            <SummaryPanel currentDate={currentDate} />
+          </>
+        )}
 
         <ConfigModal
           isOpen={isConfigOpen}
