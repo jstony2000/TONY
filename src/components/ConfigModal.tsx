@@ -506,7 +506,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                 <div className="flex gap-2 items-center">
                   <Input type="number" step="0.01" value={config.pagaExtra} onChange={(e) => handleConfigChange('pagaExtra', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Importe íntegro que se cobra en las pagas de junio y diciembre.</p>
+                <p className="text-[10px] text-gray-400 mt-1 italic">Importe íntegro que se cobra en las nóminas de junio y octubre (abono fin de noviembre).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
