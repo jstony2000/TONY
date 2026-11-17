@@ -8,8 +8,8 @@ import { MiniStats } from './components/MiniStats';
 import { SummaryPanel } from './components/SummaryPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { ExtraHoursModal } from './components/ExtraHoursModal';
-import { Lock, Unlock, Settings, Save, ChevronLeft, ChevronRight, Clock, User as UserIcon, Cloud, Maximize2, Minimize2 } from 'lucide-react';
-import { APP_VERSION, SHIFT_TYPES } from './lib/constants';
+import { Lock, Unlock, Settings, ChevronLeft, ChevronRight, Clock, User as UserIcon, Cloud, Maximize2, Minimize2 } from 'lucide-react';
+import { SHIFT_TYPES } from './lib/constants';
 
 const LEGEND_ITEMS = [
   { type: SHIFT_TYPES.DIA, label: 'DÍA', dotClass: 'bg-white border border-gray-400' },
@@ -152,22 +152,6 @@ const AppContent = () => {
     setIsConfigOpen(true);
   };
 
-  const handleBackup = () => {
-    const backup = {
-      data: state.data,
-      configAnual: state.config,
-      extras: state.extras,
-      patron: state.patron,
-      start: state.start
-    };
-    const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `nomina_stellantis_backup_${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-  };
-
   return (
     <div
       className="flex justify-center bg-[#050505] text-white overflow-hidden select-none font-sans w-screen h-dvh max-h-dvh"
@@ -179,33 +163,38 @@ const AppContent = () => {
             : 'w-full max-w-[600px] border-x border-gray-800'
         }`}
       >
-        {/* Header - Oculto en modo horizontal móvil */}
+        {/* Header ergonómico V53: Selector [< MES AÑO >] agrupado a la izquierda + 4 iconos de control a la derecha */}
         {!isLandscapeMobile && (
-          <div className="flex justify-between items-center px-2 sm:px-3 py-1.5 bg-[#111] border-b border-gray-800 shrink-0 min-h-[54px]">
-            <button onClick={handlePrevMonth} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg font-black hover:bg-gray-700">
-              <ChevronLeft size={18} />
-            </button>
-            
-            <div onClick={handleToday} className="flex-1 flex flex-col items-center justify-center m-0 px-1 cursor-pointer hover:opacity-90">
-              <h2 className="text-white uppercase font-black text-sm sm:text-xl leading-tight whitespace-nowrap">
+          <div className="flex justify-between items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-[#111] border-b border-gray-800 shrink-0 min-h-[52px]">
+            {/* Bloque de navegación de mes simétrico */}
+            <div className="flex items-center gap-1 flex-1 min-w-0 bg-[#1a1a1a] border border-gray-800 rounded-md p-0.5">
+              <button
+                onClick={handlePrevMonth}
+                title="Mes anterior"
+                className="w-7 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center bg-[#2a2a2a] hover:bg-gray-700 rounded text-white active:scale-95 transition-transform"
+              >
+                <ChevronLeft size={17} />
+              </button>
+
+              <h2
+                onClick={handleToday}
+                title="Toca para ir al mes actual"
+                className="flex-1 min-w-0 text-center m-0 px-1 text-white uppercase font-black text-[13px] sm:text-lg tracking-tight truncate cursor-pointer hover:text-[#2979ff] transition-colors"
+              >
                 {currentDate.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' }).replace(' de ', ' ')}
               </h2>
-              <span className="text-[9px] font-mono font-bold text-[#2979ff] bg-[#2979ff]/15 border border-[#2979ff]/40 px-1.5 py-0 rounded mt-0.5">
-                {APP_VERSION}
-              </span>
+
+              <button
+                onClick={handleNextMonth}
+                title="Mes siguiente"
+                className="w-7 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center bg-[#2a2a2a] hover:bg-gray-700 rounded text-white active:scale-95 transition-transform"
+              >
+                <ChevronRight size={17} />
+              </button>
             </div>
 
-            <div className="flex gap-1 sm:gap-1.5">
-              <button 
-                onClick={user ? logout : login} 
-                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
-                title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
-              >
-                {user ? <Cloud size={15} /> : <UserIcon size={15} />}
-              </button>
-              <button onClick={handleNextMonth} className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded text-lg font-black hover:bg-gray-700">
-                <ChevronRight size={18} />
-              </button>
+            {/* Bloque de acciones rápidas (Candado, Nube, Pantalla Completa, Ajustes) */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button 
                 onClick={toggleLock} 
                 title={editMode === 0 ? "Bloqueado" : editMode === 1 ? "Modo Edición Turnos" : "Modo Horas Extra"}
@@ -217,17 +206,28 @@ const AppContent = () => {
               >
                 {editMode === 0 ? <Lock size={15} /> : editMode === 1 ? <Unlock size={15} /> : <Clock size={15} />}
               </button>
+
+              <button 
+                onClick={user ? logout : login} 
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
+                title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
+              >
+                {user ? <Cloud size={15} /> : <UserIcon size={15} />}
+              </button>
+
               <button
                 onClick={toggleFullscreen}
-                title="Pantalla completa (ocultar barra URL)"
+                title="Pantalla completa"
                 className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-[#2979ff]"
               >
                 {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
-              <button onClick={handleBackup} title="Descargar copia de seguridad JSON" className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
-                <Save size={15} />
-              </button>
-              <button onClick={() => handleOpenConfigTab('nomina')} title="Configuración y Simulación de Nómina" className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700">
+
+              <button
+                onClick={() => handleOpenConfigTab('nomina')}
+                title="Configuración y Simulación de Nómina"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-white"
+              >
                 <Settings size={15} />
               </button>
             </div>
