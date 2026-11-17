@@ -1,4 +1,4 @@
-export const APP_VERSION = 'V52 PRO';
+export const APP_VERSION = 'V53 PRO';
 
 export const STORAGE_KEYS = {
   DATA: 'nomina_stellantis_universal_data_v3',
@@ -114,7 +114,7 @@ export const calculatePayrollForMonth = (
   const defaultOtros = (mesesOtros === 11 && month === 7) ? 0 : (Number(rawConfig?.otros) || 0);
   const impOtros = p.otrosMes !== undefined && p.otrosMes !== '' ? R2(Number(p.otrosMes)) : R2(defaultOtros);
 
-  const impPagaExtra = (month === 5 || month === 11) ? R2(Number(rawConfig?.pagaExtra) || 0) : 0;
+  const impPagaExtra = (month === 5 || month === 9) ? R2(Number(rawConfig?.pagaExtra) || 0) : 0;
 
   let impExtras = 0;
   if (hExtraMes !== 0 && p.cobrarExtras) {
