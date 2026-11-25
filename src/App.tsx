@@ -1,5 +1,5 @@
 // Sync Nudge
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useAppContext } from './context/AppContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -8,7 +8,7 @@ import { MiniStats } from './components/MiniStats';
 import { SummaryPanel } from './components/SummaryPanel';
 import { ConfigModal } from './components/ConfigModal';
 import { ExtraHoursModal } from './components/ExtraHoursModal';
-import { Lock, Unlock, Settings, ChevronLeft, ChevronRight, Clock, User as UserIcon, Cloud, Maximize2, Minimize2 } from 'lucide-react';
+import { Lock, Unlock, Settings, ChevronLeft, ChevronRight, Clock, User as UserIcon, Cloud, CloudOff, Maximize2, Minimize2 } from 'lucide-react';
 import { SHIFT_TYPES } from './lib/constants';
 
 const LEGEND_ITEMS = [
@@ -22,7 +22,7 @@ const LEGEND_ITEMS = [
 ];
 
 const AppContent = () => {
-  const { state, updateData } = useAppContext();
+  const { state, syncStatus, updateData } = useAppContext();
   const { user, login, logout } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [direction, setDirection] = useState(0);
@@ -35,6 +35,27 @@ const AppContent = () => {
   const [selectedDisplayDate, setSelectedDisplayDate] = useState('');
   const [isLandscapeMobile, setIsLandscapeMobile] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const handlePrevMonth = useCallback(() => {
+    setDirection(-1);
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }, []);
+
+  const handleNextMonth = useCallback(() => {
+    setDirection(1);
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }, []);
+
+  // Atajos de teclado en PC (flechas izquierda/derecha para cambiar mes)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (isConfigOpen || isExtraModalOpen) return;
+      if (e.key === 'ArrowLeft') handlePrevMonth();
+      else if (e.key === 'ArrowRight') handleNextMonth();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isConfigOpen, isExtraModalOpen, handlePrevMonth, handleNextMonth]);
 
   // Detectar giro horizontal en móvil y estado de pantalla completa
   useEffect(() => {
@@ -85,36 +106,28 @@ const AppContent = () => {
     }
   };
 
-  const handlePrevMonth = () => {
-    setDirection(-1);
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const handleNextMonth = () => {
-    setDirection(1);
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
 
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    const t = e.targetTouches[0];
+    setTouchStart({ x: t.clientX, y: t.clientY });
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    const t = e.targetTouches[0];
+    setTouchEnd({ x: t.clientX, y: t.clientY });
   };
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    const distance = touchStart - touchEnd;
-    const swipeThreshold = 50;
-    if (distance > swipeThreshold) {
-      handleNextMonth();
-    } else if (distance < -swipeThreshold) {
-      handlePrevMonth();
+    const dx = touchStart.x - touchEnd.x;
+    const dy = touchStart.y - touchEnd.y;
+    const swipeThreshold = 55;
+    if (Math.abs(dx) > Math.abs(dy) * 1.3 && Math.abs(dx) > swipeThreshold) {
+      if (dx > 0) handleNextMonth();
+      else handlePrevMonth();
     }
   };
 
@@ -152,6 +165,13 @@ const AppContent = () => {
     setIsConfigOpen(true);
   };
 
+  const getCloudTitle = () => {
+    if (!user) return 'Iniciar sesión para sincronizar en la nube';
+    if (syncStatus === 'offline') return `Sin conexión (guardado local) - ${user.email}`;
+    if (syncStatus === 'syncing') return `Sincronizando... - ${user.email}`;
+    return `Sincronizado como ${user.email} (pulsa para cerrar sesión)`;
+  };
+
   return (
     <div
       className="flex justify-center bg-[#050505] text-white overflow-hidden select-none font-sans w-screen h-dvh max-h-dvh"
@@ -163,15 +183,14 @@ const AppContent = () => {
             : 'w-full max-w-[600px] border-x border-gray-800'
         }`}
       >
-        {/* Header ergonómico V53: Selector [< MES AÑO >] agrupado a la izquierda + 4 iconos de control a la derecha */}
+        {/* Header ergonómico: Selector [< MES AÑO >] agrupado a la izquierda + 4 iconos de control a la derecha */}
         {!isLandscapeMobile && (
           <div className="flex justify-between items-center gap-1.5 px-2 sm:px-3 py-1.5 bg-[#111] border-b border-gray-800 shrink-0 min-h-[52px]">
-            {/* Bloque de navegación de mes simétrico */}
             <div className="flex items-center gap-1 flex-1 min-w-0 bg-[#1a1a1a] border border-gray-800 rounded-md p-0.5">
               <button
                 onClick={handlePrevMonth}
                 title="Mes anterior"
-                className="w-7 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center bg-[#2a2a2a] hover:bg-gray-700 rounded text-white active:scale-95 transition-transform"
+                className="w-7 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center bg-[#2a2a2a] hover:bg-gray-700 rounded text-white active:scale-95 transition-transform cursor-pointer"
               >
                 <ChevronLeft size={17} />
               </button>
@@ -187,18 +206,17 @@ const AppContent = () => {
               <button
                 onClick={handleNextMonth}
                 title="Mes siguiente"
-                className="w-7 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center bg-[#2a2a2a] hover:bg-gray-700 rounded text-white active:scale-95 transition-transform"
+                className="w-7 h-8 sm:w-8 sm:h-8 shrink-0 flex items-center justify-center bg-[#2a2a2a] hover:bg-gray-700 rounded text-white active:scale-95 transition-transform cursor-pointer"
               >
                 <ChevronRight size={17} />
               </button>
             </div>
 
-            {/* Bloque de acciones rápidas (Candado, Nube, Pantalla Completa, Ajustes) */}
             <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
               <button 
                 onClick={toggleLock} 
-                title={editMode === 0 ? "Bloqueado" : editMode === 1 ? "Modo Edición Turnos" : "Modo Horas Extra"}
-                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-700 rounded transition-colors ${
+                title={editMode === 0 ? 'Bloqueado' : editMode === 1 ? 'Modo Edición Turnos' : 'Modo Horas Extra'}
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center border border-gray-700 rounded transition-colors cursor-pointer ${
                   editMode === 0 ? 'bg-red-600 hover:bg-red-700' : 
                   editMode === 1 ? 'bg-green-500 hover:bg-green-600' : 
                   'bg-orange-500 hover:bg-orange-600'
@@ -209,16 +227,21 @@ const AppContent = () => {
 
               <button 
                 onClick={user ? logout : login} 
-                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 ${user ? 'text-[#00e676]' : 'text-gray-400'}`}
-                title={user ? `Sincronizado como ${user.email}` : "Iniciar sesión para sincronizar"}
+                className={`w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 cursor-pointer ${
+                  !user ? 'text-gray-400' :
+                  syncStatus === 'offline' ? 'text-amber-400' :
+                  syncStatus === 'syncing' ? 'text-[#2979ff] animate-pulse' :
+                  'text-[#00e676]'
+                }`}
+                title={getCloudTitle()}
               >
-                {user ? <Cloud size={15} /> : <UserIcon size={15} />}
+                {!user ? <UserIcon size={15} /> : syncStatus === 'offline' ? <CloudOff size={15} /> : <Cloud size={15} />}
               </button>
 
               <button
                 onClick={toggleFullscreen}
                 title="Pantalla completa"
-                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-[#2979ff]"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-[#2979ff] cursor-pointer"
               >
                 {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
               </button>
@@ -226,7 +249,7 @@ const AppContent = () => {
               <button
                 onClick={() => handleOpenConfigTab('nomina')}
                 title="Configuración y Simulación de Nómina"
-                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-white"
+                className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#2a2a2a] border border-gray-700 rounded hover:bg-gray-700 text-white cursor-pointer"
               >
                 <Settings size={15} />
               </button>
@@ -248,7 +271,7 @@ const AppContent = () => {
               initial={{ x: direction > 0 ? 300 : -300, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: direction > 0 ? -300 : 300, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
               onTouchStart={onTouchStart}
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
@@ -292,7 +315,7 @@ const AppContent = () => {
               })}
             </div>
 
-            <SummaryPanel currentDate={currentDate} />
+            <SummaryPanel currentDate={currentDate} onOpenPayroll={() => handleOpenConfigTab('nomina')} />
           </>
         )}
 
