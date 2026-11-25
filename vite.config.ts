@@ -1,11 +1,10 @@
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
+import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
+export default defineConfig(() => {
   return {
     base: './',
     build: {
@@ -13,15 +12,20 @@ export default defineConfig(({mode}) => {
       assetsDir: 'assets',
     },
     plugins: [
-      react(), 
+      react(),
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
+        workbox: {
+          cleanupOutdatedCaches: true,
+          clientsClaim: true,
+          skipWaiting: true,
+        },
         devOptions: {
           enabled: false
         },
         manifest: {
-          name: 'Nómina Stellantis V52 PRO',
+          name: 'Nómina Stellantis V54 PRO',
           short_name: 'Nómina',
           description: 'Herramienta de cálculo y proyección de turnos',
           theme_color: '#050505',
@@ -48,9 +52,6 @@ export default defineConfig(({mode}) => {
         }
       })
     ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

@@ -1,2 +1,2 @@
-Ultima actualizacion forzada: 2026-11-12 V52 PRO
-Fullscreen PWA, contadores 100dvh visibles y modo horizontal solo calendario.
+Ultima actualizacion forzada: 2026-11-25 V54 PRO
+Persistencia offline Firestore, lotes 400, NaN-safe, Bolsa dinamica, Presets Extra y PDF A4.
