@@ -1,40 +1,51 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  type Firestore
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+function initDb(): Firestore {
+  try {
+    return initializeFirestore(
+      app,
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        })
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+  } catch {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+}
+
+export const db = initDb();
 
 const googleProvider = new GoogleAuthProvider();
 
 export const loginWithGoogle = async () => {
-    try {
-        await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-        console.error("Error signing in with Google", error);
-        throw error;
-    }
+  try {
+    await signInWithPopup(auth, googleProvider);
+  } catch (error) {
+    console.error('Error signing in with Google', error);
+    throw error;
+  }
 };
 
 export const logout = async () => {
-    try {
-        await signOut(auth);
-    } catch (error) {
-        console.error("Error signing out", error);
-        throw error;
-    }
+  try {
+    await signOut(auth);
+  } catch (error) {
+    console.error('Error signing out', error);
+    throw error;
+  }
 };
-
-// Connection test as per instructions
-async function testConnection() {
-    try {
-      await getDocFromServer(doc(db, 'test', 'connection'));
-    } catch (error: any) {
-      if (error?.message?.includes('the client is offline')) {
-        console.error("Please check your Firebase configuration.");
-      }
-    }
-}
-testConnection();
