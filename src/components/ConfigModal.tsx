@@ -9,9 +9,11 @@ import {
   DEFAULT_CONFIG,
   APP_VERSION,
   R2,
+  safeNum,
   normalizeIrpf,
   getYearConfig,
-  calculatePayrollForMonth
+  calculatePayrollForMonth,
+  calculateUnpaidExtrasForYear
 } from '../lib/constants';
 
 interface ConfigModalProps {
@@ -23,6 +25,12 @@ interface ConfigModalProps {
 
 const MONTHS_ES = ["ENERO", "FEBRERO", "MARZO", "ABRIL", "MAYO", "JUNIO", "JULIO", "AGOSTO", "SEPTIEMBRE", "OCTUBRE", "NOVIEMBRE", "DICIEMBRE"];
 
+const parseInputNumber = (raw: string): number | '' => {
+  if (raw === '' || raw === null || raw === undefined) return '';
+  const n = parseFloat(raw.replace(',', '.'));
+  return Number.isFinite(n) ? n : '';
+};
+
 export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, currentDate, initialTab = 'nomina' }) => {
   const { state, updateConfig, applyPatron, updatePatron, updateStart, resetYear, importData } = useAppContext();
   const [year, setYear] = useState(currentDate.getFullYear().toString());
@@ -31,15 +39,17 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
   const [config, setConfig] = useState<any>(DEFAULT_CONFIG);
   const [monthParams, setMonthParams] = useState<any>({
     irpf: 20.64,
-    prima: 0,
+    prima: '',
     otrosMes: '',
-    ajusteNeto: 0,
+    ajusteNeto: '',
     hNocheManual: '',
     hFestivoManual: '',
     cobrarExtras: false
   });
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isEditingYear, setIsEditingYear] = useState(false);
+  const [showAnnualBreakdown, setShowAnnualBreakdown] = useState(false);
+  const [confirmResetYear, setConfirmResetYear] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -52,6 +62,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
       const y = currentDate.getFullYear().toString();
       const m = currentDate.getMonth().toString();
       setActiveTab(initialTab || 'nomina');
+      setConfirmResetYear(false);
       setYear(y);
       setMonth(m);
       loadConfigForYear(y, m);
@@ -65,9 +76,9 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
     const saved = conf.mesesParams?.[m] || {};
     setMonthParams({
       irpf: normalizeIrpf(saved.irpf, conf.deduccion),
-      prima: saved.prima || 0,
+      prima: saved.prima ? saved.prima : '',
       otrosMes: saved.otrosMes !== undefined ? saved.otrosMes : '',
-      ajusteNeto: saved.ajusteNeto || 0,
+      ajusteNeto: saved.ajusteNeto ? saved.ajusteNeto : '',
       hNocheManual: saved.hNocheManual !== undefined ? saved.hNocheManual : '',
       hFestivoManual: saved.hFestivoManual !== undefined ? saved.hFestivoManual : '',
       cobrarExtras: Boolean(saved.cobrarExtras)
@@ -77,7 +88,9 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
   const handleYearChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const y = e.target.value;
     setYear(y);
-    loadConfigForYear(y);
+    if (y.length === 4) {
+      loadConfigForYear(y);
+    }
   };
 
   const handleMonthChange = (val: string) => {
@@ -85,9 +98,9 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
     const saved = config.mesesParams?.[val] || {};
     setMonthParams({
       irpf: normalizeIrpf(saved.irpf, config.deduccion),
-      prima: saved.prima || 0,
+      prima: saved.prima ? saved.prima : '',
       otrosMes: saved.otrosMes !== undefined ? saved.otrosMes : '',
-      ajusteNeto: saved.ajusteNeto || 0,
+      ajusteNeto: saved.ajusteNeto ? saved.ajusteNeto : '',
       hNocheManual: saved.hNocheManual !== undefined ? saved.hNocheManual : '',
       hFestivoManual: saved.hFestivoManual !== undefined ? saved.hFestivoManual : '',
       cobrarExtras: Boolean(saved.cobrarExtras)
@@ -95,19 +108,48 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
   };
 
   const handleConfigChange = (key: string, value: any) => {
-    setConfig({ ...config, [key]: value });
+    setConfig((prev: any) => ({ ...prev, [key]: value }));
   };
 
   const handleMonthParamChange = (key: string, value: any) => {
-    setMonthParams({ ...monthParams, [key]: value });
+    setMonthParams((prev: any) => ({ ...prev, [key]: value }));
   };
 
   const saveConfig = () => {
-    const newConfig = { ...config };
-    if (!newConfig.mesesParams) newConfig.mesesParams = {};
-    newConfig.mesesParams[month] = monthParams;
-    updateConfig(year, newConfig);
-    showToast(`✓ Configuración guardada (${MONTHS_ES[parseInt(month)]} ${year})`);
+    const cleanConfig = {
+      ...config,
+      salario: safeNum(config.salario, 2516.37),
+      pagaExtra: safeNum(config.pagaExtra, 2516.37),
+      pagaExtraVeranoMes: safeNum(config.pagaExtraVeranoMes, 5),
+      pagaExtraNavidadMes: safeNum(config.pagaExtraNavidadMes, 9),
+      noche: safeNum(config.noche, 3.151789),
+      garantia: safeNum(config.garantia, 2.2909),
+      festivo: safeNum(config.festivo, 7.9452),
+      precioExtra: safeNum(config.precioExtra, 20),
+      otros: safeNum(config.otros, 38.37),
+      prorrataSS: safeNum(config.prorrataSS, 443.18),
+      deduccion: safeNum(config.deduccion, 20.64),
+      f99: safeNum(config.f99, 1.22),
+      bolsa: safeNum(config.bolsa, 0),
+      extraBase: safeNum(config.extraBase, 0),
+      adecTotal: safeNum(config.adecTotal, 8),
+      sumarExtrasABolsa: Boolean(config.sumarExtrasABolsa),
+      mesesParams: {
+        ...(config.mesesParams || {}),
+        [month]: {
+          irpf: safeNum(monthParams.irpf, safeNum(config.deduccion, 20.64)),
+          prima: safeNum(monthParams.prima, 0),
+          otrosMes: monthParams.otrosMes === '' ? '' : safeNum(monthParams.otrosMes, 0),
+          ajusteNeto: safeNum(monthParams.ajusteNeto, 0),
+          hNocheManual: monthParams.hNocheManual === '' ? '' : safeNum(monthParams.hNocheManual, 0),
+          hFestivoManual: monthParams.hFestivoManual === '' ? '' : safeNum(monthParams.hFestivoManual, 0),
+          cobrarExtras: Boolean(monthParams.cobrarExtras),
+        }
+      }
+    };
+    setConfig(cleanConfig);
+    updateConfig(year, cleanConfig);
+    showToast(`✓ Configuración guardada (${MONTHS_ES[parseInt(month, 10) || 0]} ${year})`);
   };
 
   const handleApplyPatron = () => {
@@ -116,9 +158,21 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
     const day = refDate.getDay();
     const diff = refDate.getDate() - day + (day === 0 ? -6 : 1);
     const refMonday = new Date(refDate.setDate(diff));
-    applyPatron(parseInt(year), refMonday);
+    applyPatron(parseInt(year, 10), refMonday);
     showToast(`✓ Patrón aplicado al año ${year}`);
     setTimeout(() => onClose(), 800);
+  };
+
+  const handleResetYear = () => {
+    if (!confirmResetYear) {
+      setConfirmResetYear(true);
+      setTimeout(() => setConfirmResetYear(false), 4500);
+      return;
+    }
+    resetYear(parseInt(year, 10));
+    setConfirmResetYear(false);
+    showToast(`✓ Turnos de ${year} borrados`);
+    setTimeout(() => onClose(), 700);
   };
 
   const handleBackup = () => {
@@ -129,12 +183,13 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
       patron: state.patron,
       start: state.start
     };
-    const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `nomina_stellantis_backup_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
+    URL.revokeObjectURL(url);
     showToast('✓ Copia de seguridad descargada');
   };
 
@@ -145,35 +200,44 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
     reader.onload = (event) => {
       try {
         const imported = JSON.parse(event.target?.result as string);
-        importData(imported);
+        const ok = importData(imported);
+        if (!ok) {
+          showToast('⚠️ El JSON no corresponde a una copia válida');
+          return;
+        }
         showToast('✓ Copia de seguridad restaurada');
         setTimeout(() => onClose(), 800);
-      } catch (err) {
+      } catch {
         showToast('⚠️ Error al leer el archivo JSON');
       }
     };
     reader.readAsText(file);
+    e.target.value = '';
   };
 
-  const yNum = parseInt(year) || 2026;
-  const mNum = parseInt(month) || 0;
+  const yNum = parseInt(year, 10) || 2026;
+  const mNum = parseInt(month, 10) || 0;
   const payroll = calculatePayrollForMonth(yNum, mNum, state.data, state.extras, config, monthParams);
 
-  const calculateAnnualEstimates = () => {
-    let totalBrutoAnual = 0;
-    let totalNetoAnual = 0;
-    for (let currentM = 0; currentM < 12; currentM++) {
-      const p = currentM === mNum ? monthParams : undefined;
-      const res = calculatePayrollForMonth(yNum, currentM, state.data, state.extras, config, p);
-      totalBrutoAnual = R2(totalBrutoAnual + res.totalBruto);
-      totalNetoAnual = R2(totalNetoAnual + res.liquido);
-    }
-    return { bruto: totalBrutoAnual, neto: totalNetoAnual };
-  };
+  const annualMonths = Array.from({ length: 12 }, (_, currentM) => {
+    const p = currentM === mNum ? monthParams : undefined;
+    const res = calculatePayrollForMonth(yNum, currentM, state.data, state.extras, config, p);
+    return { monthIdx: currentM, ...res };
+  });
 
-  const annualEstimates = calculateAnnualEstimates();
-  const fmtM = (n: number) => (n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const fmtN = (n: number) => (n || 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const annualEstimates = annualMonths.reduce(
+    (acc, item) => ({
+      bruto: R2(acc.bruto + item.totalBruto),
+      neto: R2(acc.neto + item.liquido),
+    }),
+    { bruto: 0, neto: 0 }
+  );
+
+  const unpaidExtrasBolsa = calculateUnpaidExtrasForYear(yNum, state.extras, config);
+  const bolsaTotalEfectiva = R2(safeNum(config.bolsa, 0) + (config.sumarExtrasABolsa ? unpaidExtrasBolsa : 0));
+
+  const fmtM = (n: number) => safeNum(n, 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const fmtN = (n: number) => safeNum(n, 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   const renderPatternGrid = () => {
     if (!state.start) return null;
@@ -252,7 +316,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
               <button
                 key={t}
                 onClick={() => setActiveTab(t)}
-                className={`py-2 text-[10px] sm:text-xs font-bold uppercase transition-colors rounded ${
+                className={`py-2 text-[10px] sm:text-xs font-bold uppercase transition-colors rounded cursor-pointer ${
                   activeTab === t 
                     ? 'bg-[#1e1e1e] text-[#2979ff] shadow-sm' 
                     : 'text-gray-400 hover:text-gray-200'
@@ -287,7 +351,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     type="number" 
                     step="0.01" 
                     value={monthParams.irpf} 
-                    onChange={(e) => handleMonthParamChange('irpf', parseFloat(e.target.value))}
+                    onChange={(e) => handleMonthParamChange('irpf', parseInputNumber(e.target.value))}
                     className="bg-[#333] border-gray-600"
                   />
                 </div>
@@ -299,9 +363,9 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                   <Input 
                     type="number" 
                     step="0.01" 
-                    placeholder={`Base: ${config.otros || 38.37} €`} 
+                    placeholder={`Base: ${safeNum(config.otros, 38.37)} €`} 
                     value={monthParams.otrosMes} 
-                    onChange={(e) => handleMonthParamChange('otrosMes', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    onChange={(e) => handleMonthParamChange('otrosMes', parseInputNumber(e.target.value))}
                     className="bg-[#333] border-gray-600"
                   />
                 </div>
@@ -311,8 +375,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     type="number" 
                     step="0.01" 
                     placeholder="Ej: 1200.50" 
-                    value={monthParams.prima || ''} 
-                    onChange={(e) => handleMonthParamChange('prima', parseFloat(e.target.value))}
+                    value={monthParams.prima} 
+                    onChange={(e) => handleMonthParamChange('prima', parseInputNumber(e.target.value))}
                     className="bg-[#333] border-gray-600"
                   />
                 </div>
@@ -322,8 +386,8 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     type="number" 
                     step="0.01" 
                     placeholder="Ej: 1.98 (KG5 - U27)" 
-                    value={monthParams.ajusteNeto || ''} 
-                    onChange={(e) => handleMonthParamChange('ajusteNeto', parseFloat(e.target.value))}
+                    value={monthParams.ajusteNeto} 
+                    onChange={(e) => handleMonthParamChange('ajusteNeto', parseInputNumber(e.target.value))}
                     className="bg-[#333] border-gray-600"
                   />
                 </div>
@@ -337,7 +401,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     step="0.01" 
                     placeholder={`Auto: ${fmtN(payroll.cN * 7.75)} h`} 
                     value={monthParams.hNocheManual} 
-                    onChange={(e) => handleMonthParamChange('hNocheManual', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    onChange={(e) => handleMonthParamChange('hNocheManual', parseInputNumber(e.target.value))}
                     className="bg-[#333] border-gray-600"
                   />
                 </div>
@@ -348,7 +412,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     step="0.01" 
                     placeholder={`Auto: ${fmtN(payroll.cF * 7.75)} h`} 
                     value={monthParams.hFestivoManual} 
-                    onChange={(e) => handleMonthParamChange('hFestivoManual', e.target.value === '' ? '' : parseFloat(e.target.value))}
+                    onChange={(e) => handleMonthParamChange('hFestivoManual', parseInputNumber(e.target.value))}
                     className="bg-[#333] border-gray-600"
                   />
                 </div>
@@ -387,7 +451,7 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     <tr>
                       <td className="text-left font-bold py-1.5 pr-2">G60 Salario Base</td>
                       <td className="py-1.5 px-1 text-center font-mono">{fmtN(payroll.diasBase)}</td>
-                      <td className="py-1.5 px-1 text-center">{payroll. ratioDia.toFixed(4).replace('.', ',')}</td>
+                      <td className="py-1.5 px-1 text-center">{payroll.ratioDia.toFixed(4).replace('.', ',')}</td>
                       <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impBase)} €</td>
                     </tr>
                     {payroll.impVacaciones > 0 && (
@@ -415,13 +479,13 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
                     <tr>
                       <td className="text-left font-bold py-1.5 pr-2">K75 Garantía Nocturna</td>
                       <td className="py-1.5 px-1 text-center font-mono">{fmtN(payroll.hGarantia)}</td>
-                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{Number(config.garantia).toFixed(4).replace('.', ',')}</td>
+                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{safeNum(config.garantia, 2.2909).toFixed(4).replace('.', ',')}</td>
                       <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impGarantia)} €</td>
                     </tr>
                     <tr>
                       <td className="text-left font-bold py-1.5 pr-2">KA9 Jornada Ord. Sáb/Dom</td>
                       <td className="py-1.5 px-1 text-center font-mono">{fmtN(payroll.hFestivo)}</td>
-                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{Number(config.festivo).toFixed(4).replace('.', ',')}</td>
+                      <td className="py-1.5 px-1 text-center font-mono text-gray-600">{safeNum(config.festivo, 7.9452).toFixed(4).replace('.', ',')}</td>
                       <td className="py-1.5 pl-2 text-right font-bold whitespace-nowrap">{fmtM(payroll.impFestivo)} €</td>
                     </tr>
                     {payroll.impOtros > 0 && (
@@ -485,7 +549,43 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
               <div className="bg-black border border-gray-800 rounded p-4 text-center mt-2 shadow-inner">
                 <div className="text-xs text-gray-400 font-bold mb-1 tracking-wider uppercase">Proyección Anual Estimada ({year})</div>
                 <div className="text-2xl font-black text-[#00e676] mb-1">{fmtM(annualEstimates.bruto)} € Brutos</div>
-                <div className="text-sm text-gray-300 font-mono">{fmtM(annualEstimates.neto)} € Netos</div>
+                <div className="text-sm text-gray-300 font-mono mb-3">{fmtM(annualEstimates.neto)} € Netos</div>
+                <button
+                  type="button"
+                  onClick={() => setShowAnnualBreakdown(prev => !prev)}
+                  className="text-xs font-bold text-[#2979ff] hover:underline cursor-pointer"
+                >
+                  {showAnnualBreakdown ? '▲ Ocultar desglose 12 meses' : '▼ Ver desglose mes a mes'}
+                </button>
+
+                {showAnnualBreakdown && (
+                  <div className="mt-3 overflow-x-auto text-left">
+                    <table className="w-full text-[11px] font-mono border-collapse">
+                      <thead>
+                        <tr className="border-b border-gray-700 text-gray-400">
+                          <th className="py-1 text-left">MES</th>
+                          <th className="py-1 text-center">N/F</th>
+                          <th className="py-1 text-right">BRUTO</th>
+                          <th className="py-1 text-right">LÍQUIDO</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-800">
+                        {annualMonths.map((item) => (
+                          <tr
+                            key={item.monthIdx}
+                            onClick={() => handleMonthChange(item.monthIdx.toString())}
+                            className={`cursor-pointer hover:bg-gray-900 ${item.monthIdx === mNum ? 'bg-[#2979ff]/15 text-white font-bold' : 'text-gray-300'}`}
+                          >
+                            <td className="py-1.5">{MONTHS_ES[item.monthIdx].slice(0, 3)}{item.impPagaExtra > 0 ? ' ★' : ''}</td>
+                            <td className="py-1.5 text-center">{item.cN}/{item.cF}</td>
+                            <td className="py-1.5 text-right">{fmtM(item.totalBruto)} €</td>
+                            <td className="py-1.5 text-right text-[#00e676]">{fmtM(item.liquido)} €</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -495,82 +595,87 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Salario Mensual (Base G60):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.salario} onChange={(e) => handleConfigChange('salario', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
+                <Input type="number" step="0.01" value={config.salario} onChange={(e) => handleConfigChange('salario', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
                 <p className="text-[10px] text-gray-400 mt-1 italic">Salario base reflejado en nómina (2516.37 €).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Importe Paga Extra:</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.pagaExtra} onChange={(e) => handleConfigChange('pagaExtra', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Importe íntegro que se cobra en las nóminas de junio y octubre (abono fin de noviembre).</p>
+                <Input type="number" step="0.01" value={config.pagaExtra} onChange={(e) => handleConfigChange('pagaExtra', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
+                <p className="text-[10px] text-gray-400 mt-1 italic">Importe íntegro en los meses de paga extra configurados abajo.</p>
+              </div>
+
+              <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
+                <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Mes Paga Extra Verano:</Label>
+                <Select value={String(config.pagaExtraVeranoMes ?? 5)} onValueChange={(v) => handleConfigChange('pagaExtraVeranoMes', parseInt(v, 10))}>
+                  <SelectTrigger className="bg-[#2a2a2a] border-gray-600 w-full h-8">
+                    <SelectValue>{MONTHS_ES[safeNum(config.pagaExtraVeranoMes, 5)]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#333] border-gray-600 text-white">
+                    {MONTHS_ES.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
+                <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Mes Paga Extra Navidad:</Label>
+                <Select value={String(config.pagaExtraNavidadMes ?? 9)} onValueChange={(v) => handleConfigChange('pagaExtraNavidadMes', parseInt(v, 10))}>
+                  <SelectTrigger className="bg-[#2a2a2a] border-gray-600 w-full h-8">
+                    <SelectValue>{MONTHS_ES[safeNum(config.pagaExtraNavidadMes, 9)]}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-[#333] border-gray-600 text-white">
+                    {MONTHS_ES.map((m, i) => <SelectItem key={i} value={i.toString()}>{m}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-gray-400 mt-1 italic">Por defecto Octubre (se abona a finales de Noviembre).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Hora Noche (K05):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.000001" value={config.noche} onChange={(e) => handleConfigChange('noche', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
+                <Input type="number" step="0.000001" value={config.noche} onChange={(e) => handleConfigChange('noche', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
                 <p className="text-[10px] text-gray-400 mt-1 italic">Ratio exacto Stellantis: 3.151789 €/h (268.69 € / 85.25h).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Garantía (K75):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.0001" value={config.garantia} onChange={(e) => handleConfigChange('garantia', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
+                <Input type="number" step="0.0001" value={config.garantia} onChange={(e) => handleConfigChange('garantia', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
                 <p className="text-[10px] text-gray-400 mt-1 italic">Plus de garantía por noches: 2.2909 € (3.75 u. por noche).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Festivo (KA9):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.0001" value={config.festivo} onChange={(e) => handleConfigChange('festivo', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
+                <Input type="number" step="0.0001" value={config.festivo} onChange={(e) => handleConfigChange('festivo', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
                 <p className="text-[10px] text-gray-400 mt-1 italic">Plus devengado por cada hora trabajada en sábado/domingo/festivo: 7.9452 €.</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Hora Extra (€):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.precioExtra} onChange={(e) => handleConfigChange('precioExtra', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
+                <Input type="number" step="0.01" value={config.precioExtra} onChange={(e) => handleConfigChange('precioExtra', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
                 <p className="text-[10px] text-gray-400 mt-1 italic">Precio al que se abonan las horas extra cobradas.</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Fijos Habituales (K70 + KEA + Transp):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.otros} onChange={(e) => handleConfigChange('otros', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
+                <Input type="number" step="0.01" value={config.otros} onChange={(e) => handleConfigChange('otros', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
                 <p className="text-[10px] text-gray-400 mt-1 italic">Ej. Agosto: 38.37 € (K70 16.96 + KEA 17.77 + Transp 3.64).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-[#2979ff] mb-1 block">Prorrata + Extras Base SS (€):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.prorrataSS} onChange={(e) => handleConfigChange('prorrataSS', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Suma sobre devengo para Base SS: 443.18 € (Prorrata 419.40 + Especie 5.89 + Prorrata Sup 15.65 + VivoFácil 2.24).</p>
+                <Input type="number" step="0.01" value={config.prorrataSS} onChange={(e) => handleConfigChange('prorrataSS', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
+                <p className="text-[10px] text-gray-400 mt-1 italic">Suma sobre devengo para Base SS: 443.18 €.</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-red-500 mb-1 block">% IRPF Base Anual (Ej: 20.64):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.deduccion} onChange={(e) => handleConfigChange('deduccion', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Porcentaje de IRPF por defecto (la Seg. Social del 6.50% se calcula aparte sobre la Base de Cotización).</p>
+                <Input type="number" step="0.01" value={config.deduccion} onChange={(e) => handleConfigChange('deduccion', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
+                <p className="text-[10px] text-gray-400 mt-1 italic">Porcentaje de IRPF por defecto (SS del 6.50% aparte).</p>
               </div>
 
               <div className="p-2 border border-gray-700 bg-[#222] rounded-md">
                 <Label className="text-xs font-bold text-red-500 mb-1 block">Retención Especie F99 (€):</Label>
-                <div className="flex gap-2 items-center">
-                  <Input type="number" step="0.01" value={config.f99} onChange={(e) => handleConfigChange('f99', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600 flex-1 h-8" />
-                </div>
-                <p className="text-[10px] text-gray-400 mt-1 italic">Concepto F99 IAC Especies Repercutido (1.22 € en agosto / 1.18 € en junio).</p>
+                <Input type="number" step="0.01" value={config.f99} onChange={(e) => handleConfigChange('f99', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600 h-8" />
+                <p className="text-[10px] text-gray-400 mt-1 italic">Concepto F99 IAC Especies Repercutido (1.22 €).</p>
               </div>
             </div>
             <Button onClick={saveConfig} className="w-full bg-[#2979ff] hover:bg-blue-600 mt-4 text-white font-bold tracking-wider">GUARDAR DATOS DEL AÑO</Button>
@@ -591,7 +696,9 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
               {renderPatternGrid()}
             </div>
             <Button onClick={handleApplyPatron} className="w-full bg-[#2979ff] hover:bg-blue-600 font-bold">APLICAR PATRÓN AL AÑO</Button>
-            <Button onClick={() => { if(confirm(`¿Borrar todos los turnos de ${year}?`)) { resetYear(parseInt(year)); onClose(); } }} variant="destructive" className="w-full">BORRAR AÑO COMPLETO</Button>
+            <Button onClick={handleResetYear} variant="destructive" className="w-full font-bold">
+              {confirmResetYear ? `⚠️ PULSA OTRA VEZ PARA BORRAR ${year}` : 'BORRAR AÑO COMPLETO'}
+            </Button>
           </div>
           )}
 
@@ -599,16 +706,28 @@ export const ConfigModal: React.FC<ConfigModalProps> = ({ isOpen, onClose, curre
           <div className="space-y-4 fade-in">
             <div className="space-y-3">
               <div>
-                <Label className="text-xs text-[#ffd700]">BOLSA DE HORAS (Oficial del Año):</Label>
-                <Input type="number" step="0.1" value={config.bolsa} onChange={(e) => handleConfigChange('bolsa', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600" />
+                <Label className="text-xs text-[#ffd700]">BOLSA DE HORAS (Base Oficial del Año):</Label>
+                <Input type="number" step="0.1" value={config.bolsa} onChange={(e) => handleConfigChange('bolsa', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600" />
+                <div className="flex items-center gap-2 mt-2 bg-[#222] p-2 rounded">
+                  <input
+                    type="checkbox"
+                    id="sumarExtrasABolsa"
+                    checked={Boolean(config.sumarExtrasABolsa)}
+                    onChange={(e) => handleConfigChange('sumarExtrasABolsa', e.target.checked)}
+                    className="w-4 h-4"
+                  />
+                  <Label htmlFor="sumarExtrasABolsa" className="text-xs cursor-pointer">
+                    Sumar extras no cobradas ({unpaidExtrasBolsa.toFixed(1)}h) → Total Bolsa: <span className="text-[#ffd700] font-bold">{bolsaTotalEfectiva.toFixed(1)}h</span>
+                  </Label>
+                </div>
               </div>
               <div>
                 <Label className="text-xs text-[#ff9100]">HORAS EXTRA (Base arrastrada):</Label>
-                <Input type="number" step="0.1" value={config.extraBase} onChange={(e) => handleConfigChange('extraBase', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600" />
+                <Input type="number" step="0.1" value={config.extraBase} onChange={(e) => handleConfigChange('extraBase', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600" />
               </div>
               <div>
                 <Label className="text-xs text-[#00b0ff]">SALDO ADEC TOTAL (Días por año):</Label>
-                <Input type="number" step="1" value={config.adecTotal} onChange={(e) => handleConfigChange('adecTotal', parseFloat(e.target.value))} className="bg-[#2a2a2a] border-gray-600" />
+                <Input type="number" step="1" value={config.adecTotal} onChange={(e) => handleConfigChange('adecTotal', parseInputNumber(e.target.value))} className="bg-[#2a2a2a] border-gray-600" />
               </div>
               <Button onClick={saveConfig} className="w-full bg-[#2979ff] hover:bg-blue-600 font-bold">GUARDAR DATOS DEL AÑO</Button>
             </div>

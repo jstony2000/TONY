@@ -88,7 +88,13 @@ export const Calendar: React.FC<CalendarProps> = ({ currentDate, editMode, onDay
   };
 
   return (
-    <div className="h-full w-full flex flex-col overflow-hidden bg-black">
+    <div
+      className={cn(
+        "h-full w-full flex flex-col overflow-hidden bg-black",
+        !isLandscapeMobile && editMode === 1 && "border-t-2 border-green-500",
+        !isLandscapeMobile && editMode === 2 && "border-t-2 border-orange-500"
+      )}
+    >
       <div className={cn(
         "grid grid-cols-7 text-center text-gray-400 font-black bg-black shrink-0",
         isLandscapeMobile ? "py-1 text-[10px] border-b border-gray-900" : "py-1.5 text-[11px] sm:text-xs"
@@ -117,6 +123,7 @@ export const Calendar: React.FC<CalendarProps> = ({ currentDate, editMode, onDay
           
           const { cls, label, bgColor, textColor } = getDayDetails(dateStr);
           const extraHours = state.extras[dateStr];
+          const extraLabel = extraHours ? (extraHours > 0 ? `+${extraHours}h` : `${extraHours}h`) : null;
           
           const isToday = fy === today.getFullYear() && fm === today.getMonth() && fd === today.getDate();
 
@@ -129,13 +136,18 @@ export const Calendar: React.FC<CalendarProps> = ({ currentDate, editMode, onDay
                 cls,
                 !item.isCurrentMonth && "opacity-35",
                 isToday && "ring-[3px] sm:ring-[4px] ring-white z-[20] shadow-[0_0_15px_4px_rgba(255,255,255,0.28)] scale-[1.04]",
-                editMode === 0 ? "cursor-default" : "cursor-pointer"
+                editMode === 0 ? "cursor-default" : "cursor-pointer active:scale-95"
               )}
               style={{ backgroundColor: bgColor }}
             >
-              {extraHours ? (
-                <div className="absolute top-0.5 right-0.5 bg-[#ff9100] text-black text-[0.5rem] sm:text-[0.55rem] font-black px-1 rounded leading-tight">
-                  +{extraHours}h
+              {extraLabel ? (
+                <div
+                  className={cn(
+                    "absolute top-0.5 right-0.5 text-[0.5rem] sm:text-[0.55rem] font-black px-1 rounded leading-tight",
+                    extraHours > 0 ? "bg-[#ff9100] text-black" : "bg-[#ff5252] text-white"
+                  )}
+                >
+                  {extraLabel}
                 </div>
               ) : null}
               <div

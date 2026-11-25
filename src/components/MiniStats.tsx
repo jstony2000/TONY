@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAppContext } from '../context/AppContext';
-import { SHIFT_TYPES, getYearConfig } from '../lib/constants';
+import { SHIFT_TYPES, getYearConfig, calculateUnpaidExtrasForYear, safeNum } from '../lib/constants';
 
 interface MiniStatsProps {
   currentDate: Date;
@@ -10,11 +10,12 @@ interface MiniStatsProps {
 export const MiniStats = ({ currentDate, onOpenConfigTab }: MiniStatsProps) => {
   const { state } = useAppContext();
   const year = currentDate.getFullYear();
+  const yearPrefix = `${year}-`;
   
   let diasT = 0, cVacAnual = 0, cConvAnual = 0, cAdecAnual = 0;
   
   Object.entries(state.data).forEach(([k, est]) => {
-    if (k.startsWith(year.toString())) {
+    if (k.startsWith(yearPrefix)) {
       if (est === SHIFT_TYPES.NOCHE || est === SHIFT_TYPES.FESTIVO || est === SHIFT_TYPES.DIA) diasT++;
       if (est === SHIFT_TYPES.VACACIONES) cVacAnual++;
       if (est === SHIFT_TYPES.CONVENIO) cConvAnual++;
@@ -23,15 +24,19 @@ export const MiniStats = ({ currentDate, onOpenConfigTab }: MiniStatsProps) => {
   });
 
   const conf = getYearConfig(state.config, year);
-  let hExtraAnual = Number(conf.extraBase) || 0;
+  let hExtraAnual = safeNum(conf.extraBase, 0);
   
   Object.entries(state.extras).forEach(([k, val]) => {
-    if (k.startsWith(year.toString())) hExtraAnual += Number(val) || 0;
+    if (k.startsWith(yearPrefix)) hExtraAnual += safeNum(val, 0);
   });
 
+  const unpaidExtrasToBolsa = conf.sumarExtrasABolsa
+    ? calculateUnpaidExtrasForYear(year, state.extras, conf)
+    : 0;
+
   const horasTrabajadas = (diasT * 7.75).toFixed(1);
-  const adecTotal = Number(conf.adecTotal) || 8;
-  const bolsa = (Number(conf.bolsa) || 0).toFixed(1);
+  const adecTotal = safeNum(conf.adecTotal, 8);
+  const bolsa = (safeNum(conf.bolsa, 0) + unpaidExtrasToBolsa).toFixed(1);
 
   return (
     <div className="grid grid-cols-6 gap-0.5 p-0.5 bg-black border-b border-gray-800 text-center flex-shrink-0 relative">
@@ -76,7 +81,7 @@ export const MiniStats = ({ currentDate, onOpenConfigTab }: MiniStatsProps) => {
 
       <div
         onClick={() => onOpenConfigTab?.('datos')}
-        title="Ajustar bolsa oficial del año"
+        title={conf.sumarExtrasABolsa ? `Base ${safeNum(conf.bolsa, 0).toFixed(1)}h + Extras a bolsa ${unpaidExtrasToBolsa.toFixed(1)}h` : 'Bolsa oficial manual'}
         className="flex flex-col items-center justify-center font-bold border-r border-gray-800 bg-[#ffd700]/15 hover:bg-[#ffd700]/25 cursor-pointer transition-colors py-1"
       >
         <span className="text-[0.4rem] sm:text-[0.45rem] uppercase text-[#ffd700] flex flex-col items-center leading-tight">

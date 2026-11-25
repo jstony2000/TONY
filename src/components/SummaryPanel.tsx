@@ -7,7 +7,7 @@ interface SummaryPanelProps {
   onOpenPayroll?: () => void;
 }
 
-export const SummaryPanel = ({ currentDate }: SummaryPanelProps) => {
+export const SummaryPanel = ({ currentDate, onOpenPayroll }: SummaryPanelProps) => {
   const { state } = useAppContext();
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -34,7 +34,9 @@ export const SummaryPanel = ({ currentDate }: SummaryPanelProps) => {
 
   return (
     <div
-      className="bg-[#111] border-t border-gray-800 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] shrink-0 grid grid-cols-4 gap-2 text-center"
+      onClick={onOpenPayroll}
+      title="Toca para abrir el recibo de nómina de este mes"
+      className="bg-[#111] hover:bg-[#171717] active:bg-[#1f1f1f] transition-colors cursor-pointer border-t border-gray-800 px-3 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] shrink-0 grid grid-cols-4 gap-2 text-center"
     >
       <div className="flex flex-col items-center justify-center">
         <span className="text-[0.55rem] text-gray-400 uppercase font-black leading-tight">TRABAJADOS</span>
